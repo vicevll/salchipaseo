@@ -52,6 +52,14 @@ const I={
   phone:sv('<rect x="6.5" y="2.5" width="11" height="19" rx="3"/><path d="M11 18.5h2"/>'),
   sync:sv('<path d="M20 11a8 8 0 0 0-14.3-4.6L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.6L20 16M20 20v-4h-4"/>'),
   user:sv('<path d="M4 21v-1a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v1"/><circle cx="12" cy="8" r="4"/>'),
+  camera:sv('<path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.4-2h4.6l1.4 2h1.8A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.6"/>'),
+  back:sv('<path d="M15 5l-7 7 7 7"/>'),
+  pill:sv('<rect x="3.5" y="8.5" width="17" height="7" rx="3.5" transform="rotate(-35 12 12)"/><path d="m9.5 8.4 5 7.2"/>'),
+  ball:sv('<circle cx="12" cy="12" r="8.5"/><path d="M4 10c4 1 12 1 16 4M5.5 17c3-3 9-4 13-3"/>'),
+  bath:sv('<path d="M4 12h16v2a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M6 12V6a2 2 0 0 1 3.6-1.2"/><path d="M8 19l-1 2M16 19l1 2"/>'),
+  star:sv('<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/>'),
+  heartF:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.5s-8-4.9-8-10.9A4.6 4.6 0 0 1 12 6.8a4.6 4.6 0 0 1 8 2.8c0 6-8 10.9-8 10.9z"/></svg>',
+  grid:sv('<rect x="4" y="4" width="7" height="7" rx="2"/><rect x="13" y="4" width="7" height="7" rx="2"/><rect x="4" y="13" width="7" height="7" rx="2"/><rect x="13" y="13" width="7" height="7" rx="2"/>'),
   paw:'<svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="6" cy="9.5" rx="2.1" ry="2.6"/><ellipse cx="10" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="14.6" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="18.4" cy="9.6" rx="2.1" ry="2.6"/><path d="M12.3 11c2.6 0 5.6 3.6 5.6 6.2 0 1.8-1.3 2.6-2.8 2.6-1.2 0-1.8-.6-2.8-.6s-1.7.6-2.9.6c-1.5 0-2.8-.8-2.8-2.6 0-2.6 3-6.2 5.7-6.2z"/></svg>',
   pee:'<svg viewBox="0 0 24 24"><path d="M12 3.2c.3 0 .6.2.8.5 1.9 2.9 5.7 7.3 5.7 10.8a6.5 6.5 0 0 1-13 0c0-3.5 3.8-7.9 5.7-10.8.2-.3.5-.5.8-.5z" fill="#FFC629" stroke="#1E1A1D" stroke-width="1.6"/></svg>',
   poop:'<svg viewBox="0 0 24 24"><path d="M6 20h12a2.5 2.5 0 0 0 .6-4.9A2.6 2.6 0 0 0 16 11.3a2.4 2.4 0 0 0-1.6-3.6c.3-1.8-.8-3.4-2.9-3.7.4 1.3-.3 2.3-1.6 2.6A2.6 2.6 0 0 0 8 11.3a2.6 2.6 0 0 0-2.6 3.8A2.5 2.5 0 0 0 6 20z" fill="#B0682E" stroke="#1E1A1D" stroke-width="1.5" stroke-linejoin="round"/></svg>',
@@ -96,22 +104,24 @@ const lsKey=k=>`salchipaseo.${k}.${(S.user&&S.user.id)||'x'}`;
 /* =========================================================
    Estado
    ========================================================= */
-const S={mode:null,user:null,dogs:[],dog:null,walks:[],routes:[],view:'perfil',histN:15};
-const DEFAULT_DOG=()=>({id:null,name:'',birthDate:'',weight:9,ideal:9,size:'std',neutered:true,activity:'auto',kcal:3600,wake:'07:30'});
+const S={mode:null,user:null,dogs:[],dog:null,walks:[],routes:[],photos:[],view:'perfil',histN:15,galFilter:'all'};
+const DEFAULT_DOG=()=>({id:null,name:'',birthDate:'',weight:9,ideal:9,size:'std',neutered:true,activity:'auto',kcal:3600,wake:'07:30',routine:null,goalMin:null,avatarPath:null});
 
 /* =========================================================
    Capa de datos
    ========================================================= */
 let sb=null;
-const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5)});
-const fromDog=d=>({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake});
+const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5),routine:Array.isArray(r.routine)?r.routine:null,goalMin:r.goal_minutes||null,avatarPath:r.avatar_path||null});
+const fromDog=d=>({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake,routine:d.routine&&d.routine.length?d.routine:null,goal_minutes:d.goalMin||null,avatar_path:d.avatarPath||null});
 const toWalk=r=>({id:r.id,dogId:r.dog_id,routeId:r.route_id,start:Date.parse(r.started_at),duration:r.duration_s,distance:r.distance_m,preview:r.preview||[],pee:r.pee,poop:r.poop,mode:r.mode});
 const fromWalk=w=>({id:w.id,dog_id:w.dogId,route_id:w.routeId||null,started_at:new Date(w.start).toISOString(),duration_s:Math.round(w.duration),distance_m:Math.round(w.distance),points:w.points||null,preview:w.preview||null,pee:!!w.pee,poop:!!w.poop,mode:w.mode||'gps'});
 const toRoute=r=>({id:r.id,name:r.name,color:r.color||'orange',points:r.points||[],distance:r.distance_m||0,created:Date.parse(r.created_at)});
 const fromRoute=r=>({id:r.id,name:r.name,color:r.color,points:r.points,distance_m:Math.round(r.distance)});
 const chk=({data,error})=>{if(error)throw error;return data;};
 
-const MEM={dogs:[],walks:[],routes:[]};
+const toPhoto=r=>({id:r.id,dogId:r.dog_id,path:r.path,thumbPath:r.thumb_path||r.path,caption:r.caption||'',takenAt:Date.parse(r.taken_at),width:r.width,height:r.height,favorite:!!r.favorite});
+const MEM={dogs:[],walks:[],routes:[],photos:[]};
+const BUCKET='photos';
 const DB={
   async listDogs(){if(S.mode==='demo')return MEM.dogs.slice();return chk(await sb.from('dogs').select('*').order('created_at')).map(toDog);},
   async saveDog(d){
@@ -119,7 +129,9 @@ const DB={
     if(d.id)return toDog(chk(await sb.from('dogs').update(fromDog(d)).eq('id',d.id).select().single()));
     return toDog(chk(await sb.from('dogs').insert(fromDog(d)).select().single()));
   },
-  async deleteDog(id){if(S.mode==='demo'){MEM.dogs=MEM.dogs.filter(d=>d.id!==id);MEM.walks=MEM.walks.filter(w=>w.dogId!==id);return;}chk(await sb.from('dogs').delete().eq('id',id));},
+  async deleteDog(id){if(S.mode==='demo'){MEM.dogs=MEM.dogs.filter(d=>d.id!==id);MEM.walks=MEM.walks.filter(w=>w.dogId!==id);MEM.photos=MEM.photos.filter(p=>p.dogId!==id);return;}
+    try{const ph=chk(await sb.from('photos').select('path,thumb_path').eq('dog_id',id));const paths=ph.flatMap(p=>[p.path,p.thumb_path]).filter(Boolean);if(paths.length)await sb.storage.from(BUCKET).remove(paths);}catch(e){console.warn(e);}
+    chk(await sb.from('dogs').delete().eq('id',id));},
   async listWalks(dogId){if(S.mode==='demo')return MEM.walks.filter(w=>w.dogId===dogId).sort((a,b)=>b.start-a.start);
     return chk(await sb.from('walks').select('id,dog_id,route_id,started_at,duration_s,distance_m,preview,pee,poop,mode').eq('dog_id',dogId).order('started_at',{ascending:false}).limit(3000)).map(toWalk);},
   async addWalk(w){if(S.mode==='demo'){MEM.walks.push(w);return;}const {error}=await sb.from('walks').insert(fromWalk(w));if(error&&error.code!=='23505')throw error;},
@@ -128,7 +140,19 @@ const DB={
   async addRoute(r){if(S.mode==='demo'){MEM.routes.push(r);return;}const {error}=await sb.from('routes').insert(fromRoute(r));if(error&&error.code!=='23505')throw error;},
   async renameRoute(id,name){if(S.mode==='demo'){const r=MEM.routes.find(x=>x.id===id);if(r)r.name=name;return;}chk(await sb.from('routes').update({name}).eq('id',id));},
   async deleteRoute(id){if(S.mode==='demo'){MEM.routes=MEM.routes.filter(r=>r.id!==id);MEM.walks.forEach(w=>{if(w.routeId===id)w.routeId=null;});return;}chk(await sb.from('routes').delete().eq('id',id));},
-  async wipe(){if(S.mode==='demo'){MEM.dogs=[];MEM.walks=[];MEM.routes=[];return;}
+  async listPhotos(dogId){if(S.mode==='demo')return MEM.photos.filter(p=>p.dogId===dogId).sort((a,b)=>b.takenAt-a.takenAt);
+    try{return chk(await sb.from('photos').select('*').eq('dog_id',dogId).order('taken_at',{ascending:false}).limit(2000)).map(toPhoto);}catch(e){console.warn('fotos',e);return [];}},
+  async addPhoto(meta,full,thumb){
+    if(S.mode==='demo'){const p=Object.assign({},meta,{path:URL.createObjectURL(full),thumbPath:URL.createObjectURL(thumb)});MEM.photos.push(p);return p;}
+    const base=`${S.user.id}/${meta.dogId}/${meta.id}`;const opts={contentType:'image/jpeg',cacheControl:'31536000',upsert:false};
+    let r=await sb.storage.from(BUCKET).upload(base+'.jpg',full,opts);if(r.error)throw r.error;
+    r=await sb.storage.from(BUCKET).upload(base+'_t.jpg',thumb,opts);if(r.error)throw r.error;
+    return toPhoto(chk(await sb.from('photos').insert({id:meta.id,dog_id:meta.dogId,path:base+'.jpg',thumb_path:base+'_t.jpg',caption:meta.caption||null,taken_at:new Date(meta.takenAt).toISOString(),width:meta.width,height:meta.height,favorite:false}).select().single()));
+  },
+  async updatePhoto(p,patch){if(S.mode==='demo'){Object.assign(p,patch);return;}const row={};if('caption' in patch)row.caption=patch.caption||null;if('favorite' in patch)row.favorite=patch.favorite;if('takenAt' in patch)row.taken_at=new Date(patch.takenAt).toISOString();chk(await sb.from('photos').update(row).eq('id',p.id));Object.assign(p,patch);},
+  async deletePhoto(p){if(S.mode==='demo'){MEM.photos=MEM.photos.filter(x=>x.id!==p.id);return;}await sb.storage.from(BUCKET).remove([p.path,p.thumbPath].filter(Boolean));chk(await sb.from('photos').delete().eq('id',p.id));},
+  async wipe(){if(S.mode==='demo'){MEM.dogs=[];MEM.walks=[];MEM.routes=[];MEM.photos=[];return;}
+    try{const ph=chk(await sb.from('photos').select('path,thumb_path'));const paths=ph.flatMap(p=>[p.path,p.thumb_path]).filter(Boolean);for(let i=0;i<paths.length;i+=100)await sb.storage.from(BUCKET).remove(paths.slice(i,i+100));chk(await sb.from('photos').delete().not('id','is',null));}catch(e){console.warn(e);}
     chk(await sb.from('walks').delete().not('id','is',null));chk(await sb.from('routes').delete().not('id','is',null));chk(await sb.from('dogs').delete().not('id','is',null));}
 };
 
@@ -212,14 +236,25 @@ function energy(){
   return {rer,f,fl,am,act,kcal,grams,meals,perMeal:grams/meals,treats:kcal*0.1,water:p.weight*60,ow};
 }
 const MEAL_NAMES={2:['Desayuno','Cena'],3:['Desayuno','Almuerzo','Cena'],4:['Desayuno','Almuerzo','Once','Cena']};
-function schedule(){
-  const wr=walkRec(),en=energy(),wake=hm2min(S.dog.wake);const now=new Date(),nowMin=now.getHours()*60+now.getMinutes();
+const dayGoal=()=>S.dog.goalMin||walkRec().total;
+const RTYPES={walk:{label:'Paseo',color:'#18B05A',icon:'walk'},meal:{label:'Comida',color:'#FF6B1A',icon:'bowl'},rest:{label:'Siesta',color:'#1F5EFF',icon:'moon'},meds:{label:'Remedio',color:'#E0558F',icon:'pill'},play:{label:'Juego',color:'#7C5CF0',icon:'ball'},groom:{label:'Aseo',color:'#19C3A6',icon:'bath'},other:{label:'Otro',color:'#7B7176',icon:'star'}};
+const rtype=t=>RTYPES[t]||RTYPES.other;
+function recommendedItems(){
+  const wr=walkRec(),en=energy(),wake=hm2min(S.dog.wake);
   const walkT=wr.count===3?[wake+15,13*60,19*60]:[wake+15,19*60];
   const names=wr.count===3?['Paseo de la mañana','Paseo de mediodía','Paseo de la tarde']:['Paseo de la mañana','Paseo de la tarde'];
   const items=walkT.map((t,i)=>({t,type:'walk',label:names[i],detail:`${wr.each} min a ritmo tranquilo`}));
   let mealT;if(en.meals===2)mealT=[walkT[0]+wr.each+45,walkT[walkT.length-1]+wr.each+45];else if(en.meals===3)mealT=[walkT[0]+wr.each+45,13*60+30,walkT[walkT.length-1]+wr.each+45];else mealT=[walkT[0]+wr.each+45,12*60,16*60,walkT[walkT.length-1]+wr.each+45];
   mealT.forEach((t,i)=>items.push({t,type:'meal',label:MEAL_NAMES[en.meals][i],detail:`${round5(en.perMeal)} g de alimento`}));
   items.push({t:14*60+30,type:'rest',label:'Siesta larga',detail:'12 a 14 h de sueño al día'});
+  return items.sort((a,b)=>a.t-b.t).map(x=>({id:uuid(),time:fmtHM(x.t),type:x.type,label:x.label,detail:x.detail,days:[]}));
+}
+const customRoutine=()=>Array.isArray(S.dog.routine)&&S.dog.routine.length>0;
+function walkCount(){if(!customRoutine())return walkRec().count;const d=new Date().getDay();return S.dog.routine.filter(x=>x.type==='walk'&&(!x.days||!x.days.length||x.days.includes(d))).length||walkRec().count;}
+function schedule(){
+  const now=new Date(),nowMin=now.getHours()*60+now.getMinutes(),dow=now.getDay();
+  const src=customRoutine()?S.dog.routine:recommendedItems();
+  const items=src.filter(x=>!x.days||!x.days.length||x.days.includes(dow)).map(x=>({t:hm2min(x.time),type:x.type,label:x.label||rtype(x.type).label,detail:x.detail||''}));
   items.sort((a,b)=>a.t-b.t);
   const slots=items.filter(i=>i.type==='walk');
   walksToday().forEach(w=>{const d=new Date(w.start),m=d.getHours()*60+d.getMinutes();let best=null,bd=1e9;slots.forEach(s=>{const x=Math.abs(s.t-m);if(x<bd){bd=x;best=s;}});if(best)best.done=true;});
@@ -328,13 +363,39 @@ function barChart(o){
 function show(scr){$$('.screen').forEach(s=>s.classList.toggle('on',s.id==='scr-'+scr));window.scrollTo(0,0);}
 function go(v){
   S.view=v;$$('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
-  $$('.bnav [data-go]').forEach(b=>b.classList.toggle('on',b.dataset.go===v||(v==='ajustes'&&b.dataset.go==='perfil')));
-  if(v==='stats')renderStats();if(v==='ajustes')renderSettings();
+  $$('.bnav [data-go]').forEach(b=>b.classList.toggle('on',b.dataset.go===v||((v==='ajustes'||v==='fotos')&&b.dataset.go==='perfil')));
+  if(v==='stats')renderStats();if(v==='ajustes')renderSettings();if(v==='fotos')renderGallery();
   window.scrollTo(0,0);
 }
-function bindAssets(root=document){$$('img[data-asset]',root).forEach(img=>{const k=img.dataset.asset;if(ASSETS[k]&&img.getAttribute('src')!==ASSETS[k])img.src=ASSETS[k];});}
-function renderBinds(){$$('[data-bind="dogname"]').forEach(e=>e.textContent=S.dog?S.dog.name:'');}
-function renderAll(){if(!S.dog)return;renderBinds();renderProfile();renderRoutes();if(S.view==='stats')renderStats();renderHealth();if(S.view==='ajustes')renderSettings();$('#demoBar').hidden=S.mode!=='demo';$('#scr-main').classList.toggle('demo',S.mode==='demo');updateSyncBar();}
+/* Animaciones de Goku como hojas de sprites (Safari no reproduce bien el WebP animado) */
+const SPRITE_META={caminando:{n:24,cols:6,rows:4,w:360,h:252,dur:40},ladeando:{n:24,cols:6,rows:4,w:380,h:370,dur:100},durmiendo:{n:25,cols:5,rows:5,w:420,h:248,dur:120}};
+const sprites=new Set();
+function makeSprite(el,k){const m=SPRITE_META[k];el.style.backgroundImage=`url("${ASSETS[k]}")`;el.style.backgroundSize=`${m.cols*100}% ${m.rows*100}%`;el.style.backgroundPosition='0% 0%';el.style.aspectRatio=`${m.w} / ${m.h}`;el._sp={k,m,f:-1,t0:performance.now()-Math.random()*800};sprites.add(el);}
+function bindAssets(root=document){
+  $$('[data-asset]',root).forEach(el=>{
+    const k=el.dataset.asset;
+    if(SPRITE_META[k]&&ASSETS[k]){
+      if(el.tagName==='IMG'){const sp=document.createElement('span');sp.className=el.className+' sprite';if(el.id)sp.id=el.id;sp.dataset.asset=k;sp.setAttribute('role','img');if(el.alt)sp.setAttribute('aria-label',el.alt);else sp.setAttribute('aria-hidden','true');el.replaceWith(sp);el=sp;}
+      if(!el._sp||el._sp.k!==k)makeSprite(el,k);
+    }else if(el.tagName==='IMG'&&ASSETS[k]&&el.getAttribute('src')!==ASSETS[k])el.src=ASSETS[k];
+  });
+}
+function spriteLoop(now){
+  sprites.forEach(el=>{if(!el.isConnected){sprites.delete(el);return;}if(!el.offsetParent)return;const s=el._sp,f=Math.floor((now-s.t0)/s.m.dur)%s.m.n;
+    if(f!==s.f){s.f=f;const c=f%s.m.cols,r=Math.floor(f/s.m.cols);el.style.backgroundPosition=`${s.m.cols>1?c/(s.m.cols-1)*100:0}% ${s.m.rows>1?r/(s.m.rows-1)*100:0}%`;}});
+  requestAnimationFrame(spriteLoop);
+}
+requestAnimationFrame(spriteLoop);
+/* URLs de fotos (firmadas en Supabase Storage, o locales en demo) */
+const urlCache=new Map();
+function urlFor(path){if(!path)return null;if(/^(blob:|data:|https?:)/.test(path))return path;const c=urlCache.get(path);return c&&c.exp>Date.now()?c.url:null;}
+async function ensureUrls(paths){
+  const need=[...new Set(paths.filter(p=>p&&!urlFor(p)))];if(!need.length||S.mode!=='cloud')return;
+  for(let i=0;i<need.length;i+=100){const {data,error}=await sb.storage.from(BUCKET).createSignedUrls(need.slice(i,i+100),3600);if(error){console.warn(error);continue;}(data||[]).forEach(d=>{if(d.signedUrl)urlCache.set(d.path,{url:d.signedUrl,exp:Date.now()+3300e3});});}
+}
+const avatarSrc=d=>(d&&urlFor(d.avatarPath))||ASSETS.cara||'';
+function renderBinds(){$$('[data-bind="dogname"]').forEach(e=>e.textContent=S.dog?S.dog.name:'');const a=$('#dogSwitch img');if(a&&S.dog)a.src=avatarSrc(S.dog);}
+function renderAll(){if(!S.dog)return;renderBinds();renderProfile();renderRoutes();if(S.view==='stats')renderStats();renderHealth();if(S.view==='ajustes')renderSettings();if(S.view==='fotos')renderGallery();$('#demoBar').hidden=S.mode!=='demo';$('#scr-main').classList.toggle('demo',S.mode==='demo');updateSyncBar();}
 
 /* ---------- toast & tooltip ---------- */
 let toastT;
@@ -361,7 +422,7 @@ function openSheet(html,opts={}){
   return sh;
 }
 function closeSheet(silent){const layer=$('#layer');if(!layer.innerHTML)return;const cb=sheetClose;sheetClose=null;layer.innerHTML='';if(cb&&!silent)cb();}
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!$('#layer .sheet.sticky'))closeSheet();});
+document.addEventListener('keydown',e=>{const lb=$('#lightbox');if(lb&&!lb.hidden&&!$('#layer').innerHTML){if(e.key==='Escape')closeLightbox();if(e.key==='ArrowRight'&&lbIdx<lbList.length-1){lbIdx++;renderLightbox();}if(e.key==='ArrowLeft'&&lbIdx>0){lbIdx--;renderLightbox();}return;}if(e.key==='Escape'&&!$('#layer .sheet.sticky'))closeSheet();});
 function confirmSheet(title,text,okLabel,onOk,danger=true,onCancel=null,cancelLabel='Cancelar'){
   const sh=openSheet(`<h2>${esc(title)}</h2><p class="sub" style="margin:8px 0 18px">${text}</p><div class="row-actions"><button class="btn btn-ghost" id="cfNo">${esc(cancelLabel)}</button><button class="btn ${danger?'btn-red':'btn-orange'}" id="cfOk">${esc(okLabel)}</button></div>`,{onClose:onCancel});
   $('#cfNo',sh).onclick=()=>closeSheet();
@@ -374,7 +435,7 @@ function confirmSheet(title,text,okLabel,onOk,danger=true,onCancel=null,cancelLa
 function renderProfile(){
   const d=S.dog,lv=levelInfo(),night=isNight();
   const sky=$('#pgSky');sky.classList.toggle('night',night);
-  const img=$('#pgDog');const asset=night?'durmiendo':'ladeando';if(img.dataset.asset!==asset){img.dataset.asset=asset;bindAssets(sky);}img.classList.toggle('sleep',night);
+  const asset=night?'durmiendo':'ladeando';if($('#pgDog').dataset.asset!==asset){$('#pgDog').dataset.asset=asset;}bindAssets(sky);$('#pgDog').classList.toggle('sleep',night);
   if(!$('#pgBokeh').innerHTML){const R=rng(3);let b='';for(let i=0;i<6;i++){const s=60+R()*120;b+=`<span style="width:${s}px;height:${s}px;left:${R()*90}%;top:${R()*80}%"></span>`;}
     [[12,36],[86,30],[92,60],[7,66],[74,48]].forEach(([x,y],i)=>{b+=`<i style="left:${x}%;top:${y}%;animation-delay:${i*.6}s"></i>`;});$('#pgBokeh').innerHTML=b;}
   $('#pgLvlNum').textContent=lv.level;
@@ -384,7 +445,7 @@ function renderProfile(){
     <path d="M${cx-r} ${cy}A${r} ${r} 0 0 1 ${cx+r} ${cy}" fill="none" stroke="#fff" stroke-opacity=".35" stroke-width="4" stroke-linecap="round"/>
     <path d="M${cx-r} ${cy}A${r} ${r} 0 0 1 ${px.toFixed(1)} ${py.toFixed(1)}" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round"/>
     ${sparks}<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="12" fill="#fff" filter="url(#glw)" opacity=".8"/><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="8" fill="#fff"/>`;
-  const tm=Math.round(todayMin()),wr=walkRec(),goal=wr.total;
+  const tm=Math.round(todayMin()),goal=dayGoal(),wcount=walkCount();
   const km=sum(S.walks,'distance')/1000,left=Math.max(0,goal-tm),done=walksToday().length;
   const nx=nextItems();
   const ws=weekStart(new Date());const wk=[];for(let i=0;i<7;i++){const a=addDays(ws,i);const m=sum(walksBetween(a.getTime(),addDays(a,1).getTime()),'duration')/60;wk.push({a,m});}
@@ -404,14 +465,19 @@ function renderProfile(){
       <div><b><span style="color:var(--blue)">${I.route}</span>${nf1.format(km)}</b><span>Km totales</span></div>
       <div><b><span style="color:var(--tan)">${I.paw}</span>${nf0.format(S.walks.length)}</b><span>Paseos</span></div>
     </div>
-    <div class="pg-act"><button class="pg-btn" data-action="start-sheet">Pasear</button><div class="pg-cost"><span>${I.clock}${left?left+' min':'¡listo!'}</span><span style="color:var(--tan)">${I.paw}<b style="color:var(--slate)">${done}/${wr.count}</b></span></div></div>
+    <div class="pg-act"><button class="pg-btn" data-action="start-sheet">Pasear</button><div class="pg-cost"><span>${I.clock}${left?left+' min':'¡listo!'}</span><span style="color:var(--tan)">${I.paw}<b style="color:var(--slate)">${done}/${wcount}</b></span></div></div>
     <div class="pg-act soft"><button class="pg-btn soft" data-go="rutas">Rutas</button><div class="pg-cost"><span>${I.route}${S.routes.length}</span></div></div>
     <div class="pg-sec">
       <div class="xp-row"><span>XP ${nf0.format(lv.xp)}</span><span>faltan ${nf0.format(lv.toNext)} para NV ${lv.level+1}</span></div>
       <div class="goalbar"><i style="width:${lv.frac*100}%;background:linear-gradient(90deg,#9DB8FF,#1F5EFF)"></i></div>
     </div>
-    <div class="pg-sec"><h3>${I.clock.replace('<svg','<svg width="20" height="20"')}Lo que viene hoy</h3>
-      <div class="next-list">${nx.length?nx.map(it=>{const col=it.type==='walk'?'var(--green)':it.type==='meal'?'var(--orange)':'var(--blue)';return `<div class="next-item ${it.late?'late':''}"><span class="dot" style="background:${col}"></span><span class="t">${fmtHM(it.t)}</span><span class="l">${esc(it.label)}<small>${it.late?'Pendiente':esc(it.detail)}</small></span></div>`;}).join(''):`<p class="muted" style="font-weight:700">Todo listo por hoy. ¡A descansar!</p>`}</div>
+    <div class="pg-sec"><h3>${I.camera.replace('<svg','<svg width="20" height="20"')}Álbum<small>${S.photos.length} ${S.photos.length===1?'foto':'fotos'}</small></h3>
+      <div class="album-strip">${S.photos.slice(0,8).map((p,i)=>`<button class="polaroid mini" data-photo="${p.id}" style="--r:${[-3,2,-1.5,3,-2,1.5,-2.5,2.5][i%8]}deg"><span class="ph-img"><img data-thumb="${p.id}" alt=""></span></button>`).join('')}
+        <button class="polaroid mini add" data-action="add-photo"><span class="ph-img">${I.camera}<b>Subir</b></span></button></div>
+      ${S.photos.length?`<button class="btn btn-white btn-block btn-sm" data-go="fotos" style="margin-top:12px">${I.grid}Ver álbum completo</button>`:''}
+    </div>
+    <div class="pg-sec"><h3>${I.clock.replace('<svg','<svg width="20" height="20"')}Lo que viene hoy<button class="link-btn mini-link" data-action="edit-routine">Editar</button></h3>
+      <div class="next-list">${nx.length?nx.map(it=>{const col=rtype(it.type).color;return `<div class="next-item ${it.late?'late':''}"><span class="dot" style="background:${col}"></span><span class="t">${fmtHM(it.t)}</span><span class="l">${esc(it.label)}<small>${it.late?'Pendiente':esc(it.detail)}</small></span></div>`;}).join(''):`<p class="muted" style="font-weight:700">Todo listo por hoy. ¡A descansar!</p>`}</div>
     </div>
     <div class="pg-sec"><h3>${I.trend.replace('<svg','<svg width="20" height="20"')}Esta semana<small>${nf0.format(Math.round(sum(wk,'m')))} min</small></h3>
       <div class="minibars">${wk.map(x=>`<div class="${x.a.getTime()===todayKey?'today':''}"><i class="${x.m>=goal?'met':''}" style="height:${Math.max(3,x.m/wmax*92)}px" title="${Math.round(x.m)} min"></i>${DOW1[x.a.getDay()]}</div>`).join('')}</div>
@@ -419,6 +485,7 @@ function renderProfile(){
     <div class="pg-sec"><h3>${I.flame.replace('<svg','<svg width="20" height="20"')}Logros<small>${MEDALS.filter(m=>m.test(ms)).length} de ${MEDALS.length}</small></h3>
       <div class="medals">${MEDALS.map((m,i)=>{const ok=m.test(ms);return `<button class="medal ${ok?'':'locked'}" data-medal="${i}"><span class="m" style="background:${m.color}">${I[m.icon]}</span>${esc(m.name)}</button>`;}).join('')}</div>
     </div>`;
+  hydratePhotos($('#pgCard'));
 }
 
 /* =========================================================
@@ -462,7 +529,7 @@ function renameSheet(r){
 function renderStats(){
   const body=$('#statsBody');
   if(!S.walks.length){body.innerHTML=`<div class="empty"><img data-asset="durmiendo" alt=""><h3>Aún no hay números</h3><p>Cuando ${esc(S.dog.name)} salga a pasear verás minutos por día, la proyección de la semana y sus horarios favoritos.</p><button class="btn btn-orange btn-block" data-action="start-sheet">${I.play}Primer paseo</button></div>`;bindAssets(body);return;}
-  const now=new Date(),goal=walkRec().total,tm=todayMin();
+  const now=new Date(),goal=dayGoal(),tm=todayMin();
   const w0=weekStart(now),wk=walksBetween(w0.getTime(),addDays(w0,7).getTime()),weekMin=sum(wk,'duration')/60,weekDist=sum(wk,'distance');
   const avg=avgDaily(14),dowMon=(now.getDay()+6)%7,daysLeft=6-dowMon;
   const projWeek=weekMin+Math.max(0,avg.min-tm)+avg.min*daysLeft,projDist=weekDist+Math.max(0,avg.dist-sum(walksToday(),'distance'))+avg.dist*daysLeft;
@@ -512,7 +579,7 @@ function renderStats(){
    SALUD
    ========================================================= */
 function renderHealth(){
-  const p=S.dog,en=energy(),wr=walkRec(),st=stage(),sc=schedule(),tm=Math.round(todayMin()),avg=avgDaily(14),avgOk=avg.min>=wr.total*0.9;
+  const p=S.dog,en=energy(),wr=walkRec(),st=stage(),sc=schedule(),tm=Math.round(todayMin()),avg=avgDaily(14),goal=dayGoal(),avgOk=avg.min>=goal*0.9;
   const month=new Date().getMonth(),hot=[10,11,0,1,2].includes(month),cold=[5,6,7].includes(month);
   const alerts=[];
   if(en.ow)alerts.push(['warn',I.scale,`${esc(p.name)} está ${nf1.format(p.weight-p.ideal)} kg sobre su peso ideal. Calculamos la comida con el peso ideal y sumamos 10 min de paseo.`]);
@@ -524,7 +591,7 @@ function renderHealth(){
   if(st==='senior')alerts.push(['info',I.info,'Etapa senior: controles cada 6 meses y atención a rigidez o dolor de espalda.']);
   let tl='',placed=false;
   sc.items.forEach(it=>{if(!placed&&it.t>sc.nowMin){tl+=`<div class="tl-now"><span>${fmtHM(sc.nowMin)}</span><span class="nd"></span><span>Ahora</span></div>`;placed=true;}
-    const ic=it.type==='walk'?I.walk:it.type==='meal'?I.bowl:I.moon,bg=it.type==='walk'?'var(--green)':it.type==='meal'?'var(--orange)':'var(--blue)';
+    const ic=I[rtype(it.type).icon],bg=rtype(it.type).color;
     const badge=it.type==='walk'?(it.done?`<span class="badge good">${I.check}Hecho</span>`:it.late?`<span class="badge warn">Pendiente</span>`:''):'';
     tl+=`<div class="tl-item ${it.done&&it.type!=='walk'?'past':''}"><span class="time">${fmtHM(it.t)}</span><span class="node" style="background:${bg}">${ic}</span><span class="what">${esc(it.label)}<small>${esc(it.detail)}</small></span>${badge}</div>`;});
   if(!placed)tl+=`<div class="tl-now"><span>${fmtHM(sc.nowMin)}</span><span class="nd"></span><span>Ahora</span></div>`;
@@ -535,14 +602,14 @@ function renderHealth(){
       <div class="portion">${MEAL_NAMES[en.meals].map(m=>`<div class="bowl"><span>${m}</span><b>${round5(en.perMeal)} g</b></div>`).join('')}<div class="bowl" style="background:var(--yellow-3)"><span>Premios máx.</span><b>${Math.round(en.treats)} kcal</b></div></div>
       <p class="hint" style="margin-top:12px">Cálculo: 70 × ${nf1.format(en.ow?p.ideal:p.weight)} kg<sup>0,75</sup> × ${nf1.format(en.f)} (${en.fl})${st!=='puppy'?` × ${nf2.format(en.am)} (actividad ${ACT_LABEL[en.act]}${p.activity==='auto'?' según sus paseos':''})`:''}.</p></div>
     <div class="card"><div class="ctitle"><span class="ic ic-green">${I.walk}</span><h3>Paseo ideal</h3><span class="badge ${avgOk?'good':'warn'}">${avgOk?I.check+'Van bien':I.alert+'Falta movimiento'}</span></div>
-      <div class="big-num">${wr.total}<small>min al día</small></div><p class="muted" style="margin-top:6px;font-weight:700">${wr.count} paseos de ~${wr.each} min</p>
-      <div style="margin-top:14px"><div class="goal-row"><span>Hoy</span><span>${tm} / ${wr.total} min</span></div><div class="goalbar"><i style="width:${Math.min(100,tm/wr.total*100)}%"></i></div>
-      <div class="goal-row" style="margin-top:10px"><span>Promedio ${avg.days||0} días</span><span>${Math.round(avg.min)} / ${wr.total} min</span></div><div class="goalbar"><i style="width:${Math.min(100,avg.min/wr.total*100)}%;background:var(--blue)"></i></div></div>
+      <div class="big-num">${goal}<small>min al día${p.goalMin?' · tu meta':''}</small></div><p class="muted" style="margin-top:6px;font-weight:700">${p.goalMin?`Recomendado: ${wr.total} min en ${wr.count} paseos`:`${wr.count} paseos de ~${wr.each} min`}</p>
+      <div style="margin-top:14px"><div class="goal-row"><span>Hoy</span><span>${tm} / ${goal} min</span></div><div class="goalbar"><i style="width:${Math.min(100,tm/goal*100)}%"></i></div>
+      <div class="goal-row" style="margin-top:10px"><span>Promedio ${avg.days||0} días</span><span>${Math.round(avg.min)} / ${goal} min</span></div><div class="goalbar"><i style="width:${Math.min(100,avg.min/goal*100)}%;background:var(--blue)"></i></div></div>
       <p class="hint" style="margin-top:12px">${esc(wr.why)}</p></div>
     ${alerts.map(([k,ic,t])=>`<div class="alert ${k}">${ic}<span>${t}</span></div>`).join('')}
-    <div class="card"><div class="ctitle"><span class="ic ic-yellow">${I.clock}</span><h3>Rutina de hoy</h3></div><div class="timeline">${tl}</div><p class="hint" style="margin-top:8px">Paseo primero y comida 45 min después: así evitas ejercicio con la guata llena.</p></div>
+    <div class="card"><div class="ctitle"><span class="ic ic-yellow">${I.clock}</span><h3>Rutina de hoy</h3><button class="btn btn-white btn-sm right" data-action="edit-routine">${I.pencil}Editar</button></div><div class="timeline">${tl}</div><p class="hint" style="margin-top:8px">${customRoutine()?'Rutina personalizada. Puedes volver a la recomendada cuando quieras.':'Rutina recomendada: paseo primero y comida 45 min después, así evitas ejercicio con la guata llena.'}</p></div>
     <div class="card"><div class="ctitle"><span class="ic ic-blue">${I.drop}</span><h3>Agua</h3></div><div class="big-num">${nf0.format(round5(en.water/10)*10)}<small>ml al día</small></div><p class="muted" style="margin-top:6px;font-weight:700">≈ ${nf1.format(en.water/250)} tazas. Lleva agua en paseos de más de 30 min.</p></div>
-    <div class="card sleep-card"><div><div class="ctitle" style="margin-bottom:6px"><span class="ic" style="background:rgba(255,255,255,.2);color:#fff">${I.moon}</span><h3>Descanso</h3></div><div class="big-num" style="color:#fff">12–14<small style="color:rgba(255,255,255,.8)">h</small></div><p class="muted" style="margin-top:6px;font-weight:700">${tm>=wr.total?'Hoy se ganó una siesta de campeón.':'Cama cómoda y sin escaleras.'}</p></div><img data-asset="durmiendo" alt="Salchicha durmiendo"></div>
+    <div class="card sleep-card"><div><div class="ctitle" style="margin-bottom:6px"><span class="ic" style="background:rgba(255,255,255,.2);color:#fff">${I.moon}</span><h3>Descanso</h3></div><div class="big-num" style="color:#fff">12–14<small style="color:rgba(255,255,255,.8)">h</small></div><p class="muted" style="margin-top:6px;font-weight:700">${tm>=goal?'Hoy se ganó una siesta de campeón.':'Cama cómoda y sin escaleras.'}</p></div><img data-asset="durmiendo" alt="Salchicha durmiendo"></div>
     <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.heart}</span><h3>Cuidados de salchicha</h3></div><div class="tips">
       <div class="tip"><span class="ic ic-pink">${I.spine}</span><div><b>Cuida su espalda</b><p>Nada de saltos desde el sillón ni escaleras. Al tomarlo, sujeta pecho y trasero a la vez.</p></div></div>
       <div class="tip"><span class="ic ic-blue">${I.harness}</span><div><b>Arnés, no collar</b><p>El arnés reparte la fuerza en el pecho y protege su cuello y columna.</p></div></div>
@@ -562,8 +629,10 @@ function renderSettings(){
     <div class="card"><div class="acct">${avatar}<div style="min-width:0"><b>${esc(u.name||'Invitado')}</b><small>${S.mode==='demo'?'Modo demo · sin cuenta':esc(u.email||'')}</small></div></div>
       ${S.mode==='demo'?`<button class="btn-google" style="margin-top:14px" data-action="to-login">${$('#googleBtn svg').outerHTML}Iniciar sesión con Google</button>`:''}</div>
     <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.paw}</span><h3>Mis perros</h3></div><div class="list">
-      ${S.dogs.map(d=>`<button class="li ${d.id===S.dog.id?'on':''}" data-switch-dog="${d.id}"><img data-asset="cara" alt=""><span>${esc(d.name)}<small>${ageLabel(d)} · ${nf1.format(d.weight)} kg</small></span><span class="chev">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
-      <button class="li" data-action="add-dog"><span class="ic ic-green">${I.plus}</span><span>Agregar otro perro</span></button></div></div>
+      ${S.dogs.map(d=>`<button class="li ${d.id===S.dog.id?'on':''}" data-switch-dog="${d.id}"><img src="${avatarSrc(d)}" alt=""><span>${esc(d.name)}<small>${ageLabel(d)} · ${nf1.format(d.weight)} kg</small></span><span class="chev">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
+      <button class="li" data-action="add-dog"><span class="ic ic-green">${I.plus}</span><span>Agregar otro perro</span></button>
+      <button class="li" data-action="edit-routine"><span class="ic ic-yellow">${I.clock}</span><span>Rutina y horarios<small>${customRoutine()?'Personalizada':'Recomendada'} · meta ${dayGoal()} min</small></span><span class="chev">${I.chev}</span></button>
+      <button class="li" data-go="fotos"><span class="ic ic-pink">${I.camera}</span><span>Álbum de fotos<small>${S.photos.length} ${S.photos.length===1?'foto':'fotos'} de ${esc(S.dog.name)}</small></span><span class="chev">${I.chev}</span></button></div></div>
     <div class="card"><div class="ctitle"><span class="ic ic-blue">${I.down}</span><h3>Tus datos</h3></div><div class="list">
       <button class="li" data-action="export"><span class="ic ic-blue">${I.down}</span><span>Exportar respaldo<small>Archivo .json con perfiles, rutas y paseos</small></span><span class="chev">${I.chev}</span></button>
       <label class="li" for="importFile" style="cursor:pointer"><span class="ic ic-blue">${I.up}</span><span>Importar respaldo<small>Agrega rutas y paseos desde un .json</small></span><span class="chev">${I.chev}</span></label>
@@ -629,14 +698,15 @@ function openEditDog(){
 }
 function openDogSwitch(){
   const sh=openSheet(`<h2>Tus perros</h2><p class="sub" style="margin-bottom:14px">Elige de quién es el paseo.</p>
-    ${S.dogs.map(d=>`<button class="opt" data-switch-dog="${d.id}"><span class="thumb" style="background:var(--yellow)"><img data-asset="cara" alt="" style="width:100%;height:100%;object-fit:cover"></span><span><b>${esc(d.name)}</b><small>${ageLabel(d)} · ${nf1.format(d.weight)} kg</small></span><span class="go-ic">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
+    ${S.dogs.map(d=>`<button class="opt" data-switch-dog="${d.id}"><span class="thumb" style="background:var(--yellow)"><img src="${avatarSrc(d)}" alt="" style="width:100%;height:100%;object-fit:cover"></span><span><b>${esc(d.name)}</b><small>${ageLabel(d)} · ${nf1.format(d.weight)} kg</small></span><span class="go-ic">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
     <button class="opt" data-action="add-dog"><span class="thumb" style="background:var(--green-3);display:grid;place-items:center;color:var(--green-d)">${I.plus}</span><span><b>Agregar otro perro</b><small>Cada uno tiene sus paseos y metas</small></span></button>`);
   bindAssets(sh);
 }
 async function selectDog(id){
   S.dog=S.dogs.find(d=>d.id===id)||S.dogs[0];S.histN=15;
   if(S.mode==='cloud')LS.set(lsKey('lastDog'),S.dog.id);
-  const [routes,walks]=await Promise.all([DB.listRoutes(),DB.listWalks(S.dog.id)]);S.routes=routes;S.walks=walks;
+  const [routes,walks,photos]=await Promise.all([DB.listRoutes(),DB.listWalks(S.dog.id),DB.listPhotos(S.dog.id)]);S.routes=routes;S.walks=walks;S.photos=photos;
+  try{await ensureUrls(S.dogs.map(d=>d.avatarPath));}catch(e){}
 }
 
 /* =========================================================
@@ -667,8 +737,8 @@ function importFile(e){
    Mapas
    ========================================================= */
 let liveMap=null,liveLayers=null,livePin=null,trackBg=null,trackFg=null;
-function tiles(){return L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{maxZoom:20,subdomains:'abcd',attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>'});}
-const dogIcon=()=>L.divIcon({className:'dp-wrap',html:`<div class="dogpin"><img src="${ASSETS.cara||''}" alt=""></div>`,iconSize:[46,46],iconAnchor:[23,23]});
+function tiles(){return L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'});}
+const dogIcon=()=>L.divIcon({className:'dp-wrap',html:`<div class="dogpin"><img src="${avatarSrc(S.dog)}" alt=""></div>`,iconSize:[46,46],iconAnchor:[23,23]});
 const startIcon=()=>L.divIcon({className:'dp-wrap',html:'<div class="startpin"></div>',iconSize:[18,18],iconAnchor:[9,9]});
 function ensureLiveMap(center){
   if(!window.L)return;
@@ -687,7 +757,7 @@ function movePin(p){if(!liveMap)return;if(!livePin)livePin=L.marker(p,{icon:dogI
 const W={active:false,paused:false,mode:'gps',elapsed:0,last:0,points:[],distance:0,watchId:null,timer:null,route:null,sim:null,pee:false,poop:false,started:0,follow:true,wakeLock:null,lastTs:0,gotFix:false,errShown:false,lastBackup:0,dogId:null};
 function openStartSheet(){
   if(W.active){$('#live').hidden=false;return;}
-  const left=Math.max(0,walkRec().total-Math.round(todayMin()));
+  const left=Math.max(0,dayGoal()-Math.round(todayMin()));
   const sh=openSheet(`<div class="sheet-head"><img data-asset="caminando" alt=""><div><h2>¿Salimos, ${esc(S.dog.name)}?</h2><p class="sub">${left?`Faltan ${left} min para la meta de hoy`:'Meta de hoy cumplida. ¡Un paseo extra nunca sobra!'}</p></div></div>
     <button class="opt" data-action="start-free" style="background:var(--green);color:#fff"><span class="thumb" style="background:rgba(255,255,255,.2);display:grid;place-items:center">${I.play.replace('<svg','<svg width="28" height="28"')}</span><span><b>Paseo libre</b><small style="color:rgba(255,255,255,.85)">Graba un recorrido nuevo con GPS</small></span></button>
     ${S.routes.length?`<p class="flabel" style="margin:16px 2px 10px">Seguir una ruta guardada</p>${S.routes.map(r=>`<button class="opt" data-walk-route="${r.id}"><span class="thumb">${routeSVG(r.points,{w:58,h:58,bg:COLORS[r.color][0],pad:9,sw:3,blocks:false})}</span><span style="min-width:0"><b>${esc(r.name)}</b><small>${fmtKm(r.distance)} · ~${fmtDur(routeStats(r).avg)}</small></span><span class="go-ic">${I.chev}</span></button>`).join('')}`:''}
@@ -743,7 +813,7 @@ function updateLive(){
   $('#lDist').innerHTML=nf2.format(W.distance/1000)+'<small>km</small>';
   const pc=fmtPace(W.distance,W.elapsed);$('#lPace').innerHTML=pc+(pc==='–'?'':'<small>/km</small>');
   $('#lSteps').textContent=nf0.format(Math.round(W.distance/DOG_STEP));
-  const goal=walkRec().total,done=todayMin()+W.elapsed/60,pr=Math.min(1,done/goal);
+  const goal=dayGoal(),done=todayMin()+W.elapsed/60,pr=Math.min(1,done/goal);
   $('#lGoalTxt').textContent=`${Math.round(done)} / ${goal} min`;$('#lGoalBar').style.width=pr*100+'%';$('#lane').style.setProperty('--p',pr.toFixed(3));
 }
 function togglePause(){if(!W.active)return;W.paused=!W.paused;$('#livePanel').classList.toggle('paused',W.paused);setPauseBtn();toast(W.paused?'Paseo en pausa':'¡Seguimos!');}
@@ -795,19 +865,183 @@ function checkLiveBackup(){
 }
 
 /* =========================================================
+   RUTINA PERSONALIZADA
+   ========================================================= */
+const DAY_ORDER=[1,2,3,4,5,6,0],DAY_L=['D','L','M','M','J','V','S'];
+function daysLabel(days){if(!days||!days.length||days.length===7)return 'Todos los días';const s=[...days].sort((a,b)=>DAY_ORDER.indexOf(a)-DAY_ORDER.indexOf(b));if(s.join()==='1,2,3,4,5')return 'Lunes a viernes';if(s.join()==='6,0')return 'Fines de semana';return s.map(d=>DOW[d]).join(', ');}
+let rtDraft=null;
+function openRoutineEditor(reset){
+  if(!rtDraft||reset){const base=customRoutine()?S.dog.routine:recommendedItems();rtDraft={items:base.map(x=>Object.assign({id:uuid(),days:[]},x)),goal:S.dog.goalMin||''};}
+  const rec=walkRec(),items=[...rtDraft.items].sort((a,b)=>hm2min(a.time)-hm2min(b.time));
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-yellow" style="width:56px;height:56px;border-radius:18px">${I.clock}</span><div><h2>Rutina de ${esc(S.dog.name)}</h2><p class="sub">Ajusta horarios de paseos, comidas y todo lo que necesite.</p></div></div>
+    <div class="field"><label for="rtGoal">Meta diaria de paseo (minutos)</label><input class="input" id="rtGoal" type="number" inputmode="numeric" min="5" max="300" step="5" value="${esc(rtDraft.goal)}" placeholder="${rec.total} (recomendado)"></div>
+    <p class="flabel" style="margin:16px 2px 8px">Actividades del día</p>
+    <div class="rt-list">${items.length?items.map(it=>{const t=rtype(it.type);return `<button class="rt-item" data-rt="${it.id}"><span class="time">${esc(it.time)}</span><span class="node" style="background:${t.color}">${I[t.icon]}</span><span class="what">${esc(it.label||t.label)}<small>${esc(it.detail||'')}${it.detail?' · ':''}${daysLabel(it.days)}</small></span><span class="chev">${I.chev}</span></button>`;}).join(''):`<p class="muted" style="font-weight:700;padding:8px 2px">Sin actividades. Agrega la primera.</p>`}</div>
+    <button class="btn btn-white btn-block btn-sm" id="rtAdd" style="margin-top:10px">${I.plus}Agregar actividad</button>
+    <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" id="rtReset">Usar recomendada</button><button class="btn btn-orange" id="rtSave">Guardar</button></div>`,{onClose:()=>{rtDraft=null;}});
+  const g=$('#rtGoal',sh);g.oninput=()=>{rtDraft.goal=g.value;};
+  $$('[data-rt]',sh).forEach(b=>b.onclick=()=>openRoutineItem(b.dataset.rt));
+  $('#rtAdd',sh).onclick=()=>openRoutineItem(null);
+  $('#rtReset',sh).onclick=()=>confirmSheet('¿Volver a la rutina recomendada?',`Se reemplazan tus horarios por los calculados según la edad, el peso y el alimento de ${esc(S.dog.name)}.`,'Usar recomendada',async()=>{await saveRoutine(null,null);},false,()=>setTimeout(()=>openRoutineEditor(),30));
+  $('#rtSave',sh).onclick=async()=>{const b=$('#rtSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';const gv=parseInt(rtDraft.goal,10);await saveRoutine(rtDraft.items,isNaN(gv)?null:Math.max(5,Math.min(300,gv)),b);};
+}
+async function saveRoutine(items,goal,btn){
+  const d=Object.assign({},S.dog,{routine:items&&items.length?items.map(({id,time,type,label,detail,days})=>({id,time,type,label,detail,days:days||[]})):null,goalMin:goal});
+  try{const saved=await DB.saveDog(d);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;rtDraft=null;closeSheet(true);renderAll();toast(items?'Rutina guardada':'Volviste a la rutina recomendada');}
+  catch(e){console.error(e);if(btn){btn.disabled=false;btn.textContent='Guardar';}toast(/routine|goal_minutes|column/i.test(e.message||'')?'Falta actualizar la base de datos (migración v3)':'No se pudo guardar. Revisa tu conexión.',4200);}
+}
+function openRoutineItem(id){
+  const isNew=!id;const it=isNew?{id:uuid(),time:'12:00',type:'walk',label:'',detail:'',days:[]}:Object.assign({},rtDraft.items.find(x=>x.id===id));
+  const sh=openSheet(`<h2>${isNew?'Nueva actividad':'Editar actividad'}</h2>
+    <p class="flabel" style="margin:14px 2px 8px">Tipo</p>
+    <div class="type-grid">${Object.entries(RTYPES).map(([k,t])=>`<button type="button" class="type-chip ${it.type===k?'on':''}" data-type="${k}" style="--c:${t.color}">${I[t.icon]}<span>${t.label}</span></button>`).join('')}</div>
+    <div class="form" style="margin-top:14px">
+      <div class="field"><label for="riTime">Hora</label><input class="input" id="riTime" type="time" value="${esc(it.time)}"></div>
+      <div class="field"><label for="riLabel">Nombre</label><input class="input" id="riLabel" maxlength="40" value="${esc(it.label)}" placeholder="${rtype(it.type).label}"></div>
+      <div class="field full"><label for="riDetail">Detalle (opcional)</label><input class="input" id="riDetail" maxlength="60" value="${esc(it.detail)}" placeholder="Ej: 30 min, 85 g, 1 pastilla"></div>
+      <div class="field full"><span class="flabel">Días</span><div class="days">${DAY_ORDER.map(d=>`<button type="button" class="day ${(!it.days||!it.days.length||it.days.includes(d))?'on':''}" data-day="${d}">${DAY_L[d]}</button>`).join('')}</div></div>
+    </div>
+    <div class="row-actions" style="margin-top:18px">${isNew?'':`<button class="btn btn-white" id="riDel" style="color:var(--red)">${I.trash}Eliminar</button>`}<button class="btn btn-orange" id="riOk">Listo</button></div>`,{onClose:()=>setTimeout(()=>openRoutineEditor(),30)});
+  let type=it.type;
+  $$('[data-type]',sh).forEach(b=>b.onclick=()=>{type=b.dataset.type;$$('[data-type]',sh).forEach(x=>x.classList.toggle('on',x===b));$('#riLabel',sh).placeholder=rtype(type).label;});
+  $$('[data-day]',sh).forEach(b=>b.onclick=()=>b.classList.toggle('on'));
+  $('#riOk',sh).onclick=()=>{
+    const days=$$('[data-day].on',sh).map(b=>+b.dataset.day);if(!days.length){toast('Elige al menos un día');return;}
+    Object.assign(it,{type,time:$('#riTime',sh).value||'12:00',label:$('#riLabel',sh).value.trim()||rtype(type).label,detail:$('#riDetail',sh).value.trim(),days:days.length===7?[]:days});
+    if(isNew)rtDraft.items.push(it);else rtDraft.items=rtDraft.items.map(x=>x.id===it.id?it:x);
+    closeSheet();
+  };
+  const del=$('#riDel',sh);if(del)del.onclick=()=>{rtDraft.items=rtDraft.items.filter(x=>x.id!==it.id);closeSheet();};
+}
+
+/* =========================================================
+   ÁLBUM DE FOTOS
+   ========================================================= */
+const TAPES=['#FFC629','#FF7EB6','#9DB8FF','#2EE59D','#FFB37F'];
+const tilt=i=>[-2.2,1.6,-1,2.4,-1.8,1.2,-2.6,2][i%8];
+const fmtDate=ts=>{const d=new Date(ts);return d.getDate()+' '+MES[d.getMonth()]+' '+d.getFullYear();};
+async function hydratePhotos(root){
+  const imgs=$$('img[data-thumb],img[data-full]',root);if(!imgs.length)return;
+  const byId=new Map(S.photos.map(p=>[p.id,p]));
+  const paths=imgs.map(i=>{const p=byId.get(i.dataset.thumb||i.dataset.full);return p?(i.dataset.full?p.path:p.thumbPath):null;});
+  try{await ensureUrls(paths);}catch(e){}
+  imgs.forEach((i,k)=>{const u=urlFor(paths[k]);if(u&&i.getAttribute('src')!==u){i.onload=()=>i.classList.add('ok');i.src=u;}});
+}
+function renderGallery(){
+  const body=$('#galBody');if(!body||!S.dog)return;const all=S.photos;
+  const favs=all.filter(p=>p.favorite),list=S.galFilter==='fav'?favs:all;
+  if(!all.length){body.innerHTML=`<div class="empty gal-empty"><img data-asset="ladeando" alt=""><h3>El álbum está vacío</h3><p>Sube las mejores fotos de ${esc(S.dog.name)}: siestas, paseos, poses de modelo…</p><button class="btn btn-orange btn-block" data-action="add-photo">${I.camera}Subir fotos</button></div><div id="galProgress" class="gal-progress" hidden><span class="spin"></span><span id="galProgressTxt">Subiendo…</span><i><b id="galProgressBar"></b></i></div>`;bindAssets(body);return;}
+  const cover=favs.concat(all.filter(p=>!p.favorite)).slice(0,3);
+  const groups=[];list.forEach(p=>{const d=new Date(p.takenAt),key=d.getFullYear()+'-'+d.getMonth();let g=groups[groups.length-1];if(!g||g.key!==key){g={key,label:cap(new Intl.DateTimeFormat('es-CL',{month:'long',year:'numeric'}).format(d)),items:[]};groups.push(g);}g.items.push(p);});
+  let idx=0;
+  body.innerHTML=`
+    <div class="gal-hero"><div class="gal-stack">${cover.map((p,i)=>`<span class="polaroid st" style="--r:${[-9,7,-2][i]}deg;--x:${[-40,36,0][i]}px"><span class="ph-img"><img data-thumb="${p.id}" alt=""></span></span>`).join('')}</div>
+      <div class="gal-hero-txt"><b>${all.length}</b><span>${all.length===1?'recuerdo':'recuerdos'} de ${esc(S.dog.name)}</span></div></div>
+    <div class="seg gal-seg"><button data-gal="all" class="${S.galFilter==='all'?'on':''}">Todas · ${all.length}</button><button data-gal="fav" class="${S.galFilter==='fav'?'on':''}">Favoritas · ${favs.length}</button></div>
+    <div id="galProgress" class="gal-progress" hidden><span class="spin"></span><span id="galProgressTxt">Subiendo…</span><i><b id="galProgressBar"></b></i></div>
+    ${list.length?groups.map(g=>`<section class="gal-month"><h3>${esc(g.label)}<small>${g.items.length} ${g.items.length===1?'foto':'fotos'}</small></h3><div class="gal-grid">${g.items.map(p=>{const i=idx++;return `<button class="polaroid" data-photo="${p.id}" style="--r:${tilt(i)}deg"><span class="tape" style="background:${TAPES[i%TAPES.length]}"></span><span class="ph-img"><img data-thumb="${p.id}" alt="${esc(p.caption)}"></span><span class="cap">${esc(p.caption)||fmtDate(p.takenAt)}</span>${p.favorite?`<i class="fav">${I.heartF}</i>`:''}</button>`;}).join('')}</div></section>`).join(''):`<p class="muted" style="text-align:center;font-weight:700;padding:30px 0">Aún no marcas favoritas. Abre una foto y toca el corazón.</p>`}`;
+  $$('[data-gal]',body).forEach(b=>b.onclick=()=>{S.galFilter=b.dataset.gal;renderGallery();});
+  hydratePhotos(body);
+}
+function pickPhotos(){const inp=$('#photoInput');inp.value='';inp.click();}
+async function processImage(file){
+  const url=URL.createObjectURL(file);
+  try{
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('formato'));i.src=url;});
+    const W=img.naturalWidth,H=img.naturalHeight;
+    const make=(max,q)=>new Promise((res,rej)=>{const s=Math.min(1,max/Math.max(W,H));const c=document.createElement('canvas');c.width=Math.max(1,Math.round(W*s));c.height=Math.max(1,Math.round(H*s));const ctx=c.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);ctx.drawImage(img,0,0,c.width,c.height);c.toBlob(b=>b?res(b):rej(new Error('canvas')),'image/jpeg',q);});
+    return {full:await make(1600,.85),thumb:await make(560,.8),width:W,height:H};
+  }finally{URL.revokeObjectURL(url);}
+}
+let uploading=false;
+async function uploadPhotos(files){
+  const list=[...files].filter(f=>/^image\//.test(f.type)||/\.(heic|heif|jpe?g|png|webp|gif)$/i.test(f.name)).slice(0,30);
+  if(!list.length||uploading)return;uploading=true;
+  if(S.view!=='fotos')go('fotos');
+  let ok=0,fail=0,lastErr='';
+  for(let i=0;i<list.length;i++){
+    const pg=$('#galProgress');if(pg){pg.hidden=false;$('#galProgressTxt').textContent=`Subiendo ${i+1} de ${list.length}…`;$('#galProgressBar').style.width=Math.round((i+.5)/list.length*100)+'%';}
+    try{const f=list[i];const im=await processImage(f);const meta={id:uuid(),dogId:S.dog.id,caption:'',takenAt:(f.lastModified&&f.lastModified<Date.now()+6e4)?f.lastModified:Date.now(),width:im.width,height:im.height,favorite:false};
+      const saved=await DB.addPhoto(meta,im.full,im.thumb);S.photos.unshift(saved);ok++;}
+    catch(e){console.error(e);fail++;lastErr=e.message||'';}
+    S.photos.sort((a,b)=>b.takenAt-a.takenAt);
+    if(S.view==='fotos')renderGallery();
+  }
+  uploading=false;renderAll();
+  if(!fail)toast(`¡${ok} ${ok===1?'foto agregada':'fotos agregadas'} al álbum!`,3000);
+  else toast(/bucket|not found|policy|row-level|photos/i.test(lastErr)?'Falta activar el álbum en Supabase (migración v3)':`Se subieron ${ok} de ${list.length}. Revisa tu conexión.`,4500);
+}
+let lbIdx=0,lbList=[];
+function openLightbox(id){
+  lbList=S.view==='fotos'&&S.galFilter==='fav'?S.photos.filter(p=>p.favorite):S.photos.slice();
+  lbIdx=Math.max(0,lbList.findIndex(p=>p.id===id));
+  let lb=$('#lightbox');if(!lb){lb=document.createElement('div');lb.id='lightbox';lb.className='lightbox';lb.setAttribute('role','dialog');lb.setAttribute('aria-modal','true');document.body.appendChild(lb);}
+  lb.hidden=false;document.body.style.overflow='hidden';renderLightbox();
+}
+function closeLightbox(){const lb=$('#lightbox');if(lb){lb.hidden=true;lb.innerHTML='';}document.body.style.overflow='';}
+function renderLightbox(){
+  const lb=$('#lightbox');const p=lbList[lbIdx];if(!lb||!p){closeLightbox();return;}
+  const isAvatar=!!S.dog.avatarPath&&S.dog.avatarPath===p.thumbPath;
+  lb.innerHTML=`<div class="lb-top"><span>${lbIdx+1} / ${lbList.length}</span><button class="icon-btn" id="lbClose" aria-label="Cerrar">${I.x}</button></div>
+    <div class="lb-stage" id="lbStage">${lbIdx>0?`<button class="lb-nav prev" id="lbPrev" aria-label="Anterior">${I.back}</button>`:''}<img class="lb-ph" data-thumb="${p.id}" alt=""><img class="lb-img" data-full="${p.id}" alt="${esc(p.caption)}">${lbIdx<lbList.length-1?`<button class="lb-nav next" id="lbNext" aria-label="Siguiente">${I.chev}</button>`:''}</div>
+    <div class="lb-card"><p class="lb-cap">${esc(p.caption)||'<span class="muted">Sin descripción</span>'}</p><p class="lb-date">${fmtDate(p.takenAt)}</p>
+      <div class="lb-actions">
+        <button id="lbFav" class="${p.favorite?'on':''}">${p.favorite?I.heartF:I.heart}<span>Favorita</span></button>
+        <button id="lbEdit">${I.pencil}<span>Editar</span></button>
+        <button id="lbAvatar" class="${isAvatar?'on':''}">${I.user}<span>${isAvatar?'Su foto':'De perfil'}</span></button>
+        <button id="lbDown">${I.down}<span>Guardar</span></button>
+        <button id="lbDel">${I.trash}<span>Eliminar</span></button>
+      </div></div>`;
+  hydratePhotos(lb);
+  $('#lbClose').onclick=closeLightbox;
+  const pv=$('#lbPrev'),nx=$('#lbNext');if(pv)pv.onclick=()=>{lbIdx--;renderLightbox();};if(nx)nx.onclick=()=>{lbIdx++;renderLightbox();};
+  const st=$('#lbStage');let x0=null;st.ontouchstart=e=>{x0=e.touches[0].clientX;};st.ontouchend=e=>{if(x0===null)return;const dx=e.changedTouches[0].clientX-x0;x0=null;if(dx<-50&&lbIdx<lbList.length-1){lbIdx++;renderLightbox();}else if(dx>50&&lbIdx>0){lbIdx--;renderLightbox();}};
+  $('#lbFav').onclick=async()=>{try{await DB.updatePhoto(p,{favorite:!p.favorite});renderLightbox();renderAll();}catch(e){toast('No se pudo guardar. Revisa tu conexión.');}};
+  $('#lbEdit').onclick=()=>editPhotoSheet(p);
+  $('#lbAvatar').onclick=async()=>{if(isAvatar)return;const d=Object.assign({},S.dog,{avatarPath:p.thumbPath});try{const saved=await DB.saveDog(d);Object.assign(S.dog,saved);await ensureUrls([S.dog.avatarPath]);renderLightbox();renderAll();toast(`Nueva foto de perfil para ${S.dog.name}`);}catch(e){console.error(e);toast(/avatar_path|column/i.test(e.message||'')?'Falta actualizar la base de datos (migración v3)':'No se pudo guardar. Revisa tu conexión.',4000);}};
+  $('#lbDown').onclick=async()=>{try{await ensureUrls([p.path]);const blob=await (await fetch(urlFor(p.path))).blob();const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`${(S.dog.name||'perro').toLowerCase()}-${new Date(p.takenAt).toISOString().slice(0,10)}.jpg`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},800);}catch(e){toast('No se pudo descargar');}};
+  $('#lbDel').onclick=()=>confirmSheet('¿Eliminar esta foto?','Se borra del álbum para siempre.','Eliminar',async()=>{await DB.deletePhoto(p);S.photos=S.photos.filter(x=>x.id!==p.id);lbList=lbList.filter(x=>x.id!==p.id);if(S.dog.avatarPath===p.thumbPath){S.dog.avatarPath=null;try{await DB.saveDog(S.dog);}catch(e){}}if(lbIdx>=lbList.length)lbIdx=lbList.length-1;renderAll();if(lbList.length)renderLightbox();else closeLightbox();toast('Foto eliminada');});
+}
+function editPhotoSheet(p){
+  const local=new Date(p.takenAt-new Date(p.takenAt).getTimezoneOffset()*6e4).toISOString().slice(0,10);
+  const sh=openSheet(`<h2>Editar foto</h2><div class="form" style="margin-top:14px"><div class="field full"><label for="peCap">Descripción</label><textarea class="input" id="peCap" maxlength="200" rows="3" placeholder="Ej: Primera vez en la playa">${esc(p.caption)}</textarea></div>
+    <div class="field full"><label for="peDate">Fecha</label><input class="input" id="peDate" type="date" value="${local}"></div></div>
+    <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" id="peNo">Cancelar</button><button class="btn btn-orange" id="peOk">Guardar</button></div>`);
+  $('#peNo',sh).onclick=()=>closeSheet();
+  $('#peOk',sh).onclick=async()=>{const capt=$('#peCap',sh).value.trim(),dv=$('#peDate',sh).value,t=dv?new Date(dv+'T12:00:00').getTime():p.takenAt;
+    try{await DB.updatePhoto(p,{caption:capt,takenAt:t});S.photos.sort((a,b)=>b.takenAt-a.takenAt);lbList.sort((a,b)=>b.takenAt-a.takenAt);lbIdx=Math.max(0,lbList.findIndex(x=>x.id===p.id));closeSheet();renderLightbox();renderAll();toast('Foto actualizada');}catch(e){toast('No se pudo guardar. Revisa tu conexión.');}};
+}
+async function makeDemoPhotos(){
+  const defs=[['ladeando','#FFC629','Pose oficial de modelo',0,5],['caminando','#2EE59D','Rumbo al Parque Forestal',3,3],['durmiendo','#9DB8FF','Siesta de campeón',8,10],['ladeando','#FF7EB6','¿Dijiste galleta?',15,14],['caminando','#FFB37F','Paseo de sábado',38,9]];
+  const load=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});
+  for(const [k,bg,capt,daysAgo,f] of defs){
+    try{const m=SPRITE_META[k];const img=await load(ASSETS[k]);const c=document.createElement('canvas');c.width=c.height=720;const x=c.getContext('2d');
+      x.fillStyle=bg;x.fillRect(0,0,720,720);x.fillStyle='rgba(255,255,255,.35)';for(let j=0;j<6;j++){x.beginPath();x.arc(80+j*120,90+(j%2)*520,36+j*8,0,7);x.fill();}
+      const sx=(f%m.cols)*m.w,sy=Math.floor(f/m.cols)*m.h,dw=620,dh=dw*m.h/m.w;x.drawImage(img,sx,sy,m.w,m.h,50,(720-dh)/2+30,dw,dh);
+      const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
+      await DB.addPhoto({id:uuid(),dogId:MEM.dogs[0].id,caption:capt,takenAt:Date.now()-daysAgo*864e5,width:720,height:720,favorite:daysAgo===0||daysAgo===8},blob,blob);
+    }catch(e){console.warn(e);}
+  }
+}
+
+/* =========================================================
    Eventos
    ========================================================= */
 function armDelete(btn,fn){if(btn.classList.contains('armed')){fn();return;}btn.classList.add('armed');toast('Toca de nuevo para eliminar');setTimeout(()=>btn.classList.remove('armed'),3000);}
 document.addEventListener('click',async e=>{
   const t=e.target.closest('button,[data-go],[data-action],[data-medal]');if(!t)return;
+  if(t.closest('#lightbox'))return;
   if(t.hasAttribute('data-close')&&t.closest('.sheet')&&!t.id){closeSheet();return;}
   if(t.dataset.go){closeSheet(true);go(t.dataset.go);return;}
+  if(t.dataset.photo){openLightbox(t.dataset.photo);return;}
   if(t.dataset.medal){const m=MEDALS[+t.dataset.medal];toast(`${m.name}: ${m.desc}${m.test(medalStats())?' ✓':''}`);return;}
   const a=t.dataset.action;
   if(a==='start-sheet'){openStartSheet();return;}
   if(a==='start-free'){startWalk('gps');return;}
   if(a==='start-sim'){startWalk('sim');return;}
   if(a==='edit-dog'){openEditDog();return;}
+  if(a==='add-photo'){pickPhotos();return;}
+  if(a==='edit-routine'){closeSheet(true);openRoutineEditor(true);return;}
   if(a==='add-dog'){closeSheet(true);openOnboarding('add');return;}
   if(a==='export'){exportData();return;}
   if(a==='sync'){await flushQueue();renderSettings();if(!queueGet().length)toast('Todo sincronizado');return;}
@@ -821,6 +1055,7 @@ document.addEventListener('click',async e=>{
   if(t.dataset.delWalk){armDelete(t,async()=>{const id=t.dataset.delWalk;try{await DB.deleteWalk(id);S.walks=S.walks.filter(w=>w.id!==id);renderAll();toast('Paseo eliminado');}catch(err){toast('No se pudo eliminar. Revisa tu conexión.');}});return;}
 });
 $('#dogSwitch').onclick=openDogSwitch;
+$('#photoInput').onchange=e=>uploadPhotos(e.target.files);
 $('#pgLvl').onclick=()=>{const lv=levelInfo();toast(`Nivel ${lv.level}: ganas 1 XP por minuto y 10 XP por km. Faltan ${nf0.format(lv.toNext)} XP.`,4000);};
 $('#pauseBtn').onclick=togglePause;
 $('#stopBtn').onclick=stopWalk;
@@ -849,9 +1084,9 @@ async function loginGoogle(){
 }
 function enterDemo(){
   S.mode='demo';S.user={name:'Invitado'};makeDemo();
-  S.dogs=MEM.dogs.slice();selectDog(S.dogs[0].id).then(()=>{show('main');go('perfil');renderAll();});
+  S.dogs=MEM.dogs.slice();selectDog(S.dogs[0].id).then(()=>{show('main');go('perfil');renderAll();makeDemoPhotos().then(async()=>{S.photos=await DB.listPhotos(S.dog.id);renderAll();});});
 }
-function resetToLogin(){closeSheet(true);S.mode=null;S.user=null;S.dog=null;S.dogs=[];S.walks=[];S.routes=[];$('#live').hidden=true;show('login');}
+function resetToLogin(){closeSheet(true);closeLightbox();S.photos=[];S.mode=null;S.user=null;S.dog=null;S.dogs=[];S.walks=[];S.routes=[];$('#live').hidden=true;show('login');}
 async function logout(){
   if(S.mode==='cloud'&&sb){try{await sb.auth.signOut();}catch(e){}}
   resetToLogin();
