@@ -606,3 +606,12 @@ button.pg-hptxt svg{width:15px;height:15px;color:#B9C3C6}
 #scr-main.demo .pg-top{top:14px}
 #scr-main.demo .pg-lvl{top:34px}
 #scr-main.demo .pg-arc{top:96px}
+
+/* v6 · avisos y estadísticas */
+.li.static{cursor:default;align-items:flex-start}
+.li.static>span:nth-child(2){flex:1;min-width:0}
+.rem-chips{flex-wrap:wrap;margin-top:8px}
+.rem-chips .st-chip{flex:1 1 40%;font-size:12.5px;padding:7px 6px}
+.rem-times{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.rem-times span{display:inline-flex;align-items:center;gap:6px;background:#E3F6EA;color:#0E7C3E;border-radius:999px;padding:8px 13px;font-weight:800;font-size:15px}
+.rem-times svg{width:18px;height:18px}
