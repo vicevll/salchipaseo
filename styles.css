@@ -588,3 +588,15 @@ button.pg-hptxt svg{width:15px;height:15px;color:#B9C3C6}
 .live-map .map-pill{max-width:calc(100% - 140px)}
 .live-panel{max-height:62vh;max-height:62dvh}
 .live-map{min-height:36vh}
+
+/* v5: app nativa */
+.toggle{margin-left:auto;width:48px;height:28px;border-radius:999px;background:#E3DCD2;position:relative;flex:none;transition:background .2s}
+.toggle i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:transform .2s}
+.toggle.on{background:var(--green)}
+.toggle.on i{transform:translateX(20px)}
+.otp-input{font-family:var(--f-display);font-size:30px;font-weight:600;text-align:center;letter-spacing:.35em;min-height:62px}
+
+/* v5 · contraseña */
+.pw-wrap{position:relative}
+.pw-wrap .input{padding-right:84px}
+.pw-eye{position:absolute;right:8px;top:50%;transform:translateY(-50%);border:0;background:var(--sand);color:var(--ink-2);font:800 13px/1 var(--f-body);padding:9px 12px;border-radius:12px;cursor:pointer}
