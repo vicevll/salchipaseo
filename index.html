@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Salchipaseo · Paseos felices para tu perro</title>
+<meta name="description" content="Registra los paseos de tu perro: rutas, tiempos, estadísticas y consejos de salud.">
+<meta name="theme-color" content="#FFC629">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Salchipaseo">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&family=Roboto:wght@500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="leaflet.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="desk-bg" id="deskBg" aria-hidden="true"></div>
+<div class="app" id="app">
+
+  <!-- ============ CARGANDO ============ -->
+  <section class="screen loading on" id="scr-loading">
+    <div class="walk-scene" data-scene><img class="ws-dog" data-asset="caminando" alt=""></div>
+    <p>Cargando…</p>
+  </section>
+
+  <!-- ============ LOGIN ============ -->
+  <section class="screen login" id="scr-login">
+    <div class="login-top">
+      <span class="logo"><span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><ellipse cx="6" cy="9.5" rx="2.1" ry="2.6"/><ellipse cx="10" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="14.6" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="18.4" cy="9.6" rx="2.1" ry="2.6"/><path d="M12.3 11c2.6 0 5.6 3.6 5.6 6.2 0 1.8-1.3 2.6-2.8 2.6-1.2 0-1.8-.6-2.8-.6s-1.7.6-2.9.6c-1.5 0-2.8-.8-2.8-2.6 0-2.6 3-6.2 5.7-6.2z"/></svg></span><span>Salchi<b>paseo</b></span></span>
+      <h1>Paseos <span>felices</span> para tu salchicha</h1>
+      <p>Registra sus rutas y tiempos, mira cuánto camina cada semana y recibe consejos para su salud.</p>
+    </div>
+    <div class="walk-scene" data-scene><img class="ws-dog" data-asset="caminando" alt="Goku caminando por la vereda"></div>
+    <div class="login-actions">
+      <div class="config-warn" id="configWarn" hidden>Falta conectar Supabase: completa <b>config.js</b> para activar el login con Google. Mientras tanto puedes probar la app sin cuenta.</div>
+      <button class="btn-google" id="googleBtn"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continuar con Google</button>
+      <button class="btn btn-ghost btn-block" id="demoBtn">Probar sin cuenta</button>
+      <p class="fine">Tus paseos, rutas y perfiles se guardan de forma privada en tu cuenta.</p>
+    </div>
+  </section>
+
+  <!-- ============ ONBOARDING ============ -->
+  <section class="screen onboard" id="scr-onboard">
+    <div class="onb-head" id="onbHead">
+      <h1 id="onbTitle">¡Hola! Cuéntanos de tu salchicha</h1>
+      <p>Con estos datos calculamos su comida, paseos y metas.</p>
+      <img data-asset="ladeando" alt="Salchicha ladeando la cabeza">
+    </div>
+    <div class="onb-body">
+      <form class="form" id="onbForm" autocomplete="off" data-dogform></form>
+      <button class="btn btn-orange btn-lg btn-block" id="onbSave" style="margin-top:18px">Crear perfil</button>
+      <button class="btn btn-ghost btn-block" id="onbCancel" style="margin-top:12px" hidden>Cancelar</button>
+    </div>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <section class="screen" id="scr-main">
+    <div class="demo-bar" id="demoBar" hidden><span class="pill">DEMO</span><span>Sin cuenta · no se guarda</span><button class="link-btn" id="demoExit">Iniciar sesión</button></div>
+    <div class="sync-bar" id="syncBar" hidden></div>
+
+    <!-- PERFIL -->
+    <div class="view" id="v-perfil">
+      <div class="pg-sky" id="pgSky">
+        <div class="bokeh" id="pgBokeh"></div>
+        <div class="pg-top">
+          <button class="dog-switch" id="dogSwitch" aria-label="Cambiar de perro"><img data-asset="cara" alt=""><span data-bind="dogname">Goku</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>
+          <button class="pg-gear" data-go="ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button>
+        </div>
+        <div class="pg-lvl" id="pgLvl" role="button" tabindex="0"><span>NV</span><b id="pgLvlNum">1</b></div>
+        <svg class="pg-arc" id="pgArc" viewBox="0 0 400 200" aria-hidden="true"></svg>
+        <img class="pg-dog" id="pgDog" data-asset="ladeando" alt="Tu salchicha">
+      </div>
+      <div class="pg-card" id="pgCard"></div>
+    </div>
+
+    <!-- RUTAS -->
+    <div class="view" id="v-rutas">
+      <div class="vhead"><div><span class="kicker">Tus recorridos</span><h1>Rutas</h1></div><div class="right"><button class="btn btn-orange btn-sm" data-action="start-free"><svg viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="12" r="6"/></svg>Grabar</button></div></div>
+      <div class="vbody" id="routesBody"></div>
+    </div>
+
+    <!-- ESTADÍSTICAS -->
+    <div class="view" id="v-stats">
+      <div class="vhead"><div><span class="kicker">Números con cola</span><h1>Estadísticas</h1></div></div>
+      <div class="vbody" id="statsBody"></div>
+    </div>
+
+    <!-- SALUD -->
+    <div class="view" id="v-salud">
+      <div class="vhead"><div><span class="kicker">Bienestar salchicha</span><h1>Salud</h1></div><div class="right"><button class="btn btn-white btn-sm" data-action="edit-dog">Editar perfil</button></div></div>
+      <div class="vbody" id="healthBody"></div>
+    </div>
+
+    <!-- AJUSTES -->
+    <div class="view" id="v-ajustes">
+      <div class="vhead"><div><span class="kicker">Tu cuenta</span><h1>Ajustes</h1></div></div>
+      <div class="vbody" id="settingsBody"></div>
+    </div>
+
+    <nav class="bnav" id="bnav" aria-label="Secciones">
+      <button data-go="perfil" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-1a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v1"/><circle cx="12" cy="8" r="4"/></svg>Perfil</button>
+      <button data-go="rutas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg>Rutas</button>
+      <button class="go" data-action="start-sheet" aria-label="Pasear"><span class="ball"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="6" cy="9.5" rx="2.1" ry="2.6"/><ellipse cx="10" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="14.6" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="18.4" cy="9.6" rx="2.1" ry="2.6"/><path d="M12.3 11c2.6 0 5.6 3.6 5.6 6.2 0 1.8-1.3 2.6-2.8 2.6-1.2 0-1.8-.6-2.8-.6s-1.7.6-2.9.6c-1.5 0-2.8-.8-2.8-2.6 0-2.6 3-6.2 5.7-6.2z"/></svg></span>Pasear</button>
+      <button data-go="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>Stats</button>
+      <button data-go="salud"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg>Salud</button>
+    </nav>
+  </section>
+
+  <!-- ============ PASEO EN VIVO ============ -->
+  <div class="live" id="live" hidden>
+    <div class="live-map">
+      <div class="map" id="liveMap"></div>
+      <div class="map-pill" id="gpsPill"><span class="dot"></span><span id="gpsText">Buscando señal GPS…</span></div>
+      <button class="btn btn-white btn-sm recenter" id="recenter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Centrar</button>
+    </div>
+    <div class="live-panel" id="livePanel">
+      <div class="live-top"><span class="rec"></span><span id="liveTitle">Paseando</span><span class="tag" id="modeTag">GPS</span></div>
+      <div class="timer" id="timer">00:00</div>
+      <div class="live-stats">
+        <div class="tile"><span>Distancia</span><b id="lDist">0,00<small>km</small></b></div>
+        <div class="tile"><span>Ritmo</span><b id="lPace">–</b></div>
+        <div class="tile"><span>Pasitos</span><b id="lSteps">0</b></div>
+      </div>
+      <div>
+        <div class="goal-row"><span>Meta de hoy</span><span id="lGoalTxt">0 / 60 min</span></div>
+        <div class="lane" id="lane">
+          <svg class="lane-flag" viewBox="0 0 26 44" aria-hidden="true"><rect x="3" y="2" width="4" height="42" rx="2" fill="#1E1A1D"/><path d="M7 4h16l-5 7 5 7H7z" fill="#FF6B1A"/></svg>
+          <img class="lane-dog" data-asset="caminando" alt="">
+          <div class="goalbar"><i id="lGoalBar" style="width:0%"></i></div>
+        </div>
+      </div>
+      <div class="follow-note" id="followNote" hidden></div>
+      <div class="flags">
+        <button class="flag" id="flagPee" aria-pressed="false"></button>
+        <button class="flag" id="flagPoop" aria-pressed="false"></button>
+      </div>
+      <div class="live-actions">
+        <button class="btn btn-white" id="pauseBtn"></button>
+        <button class="btn btn-red" id="stopBtn"><svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="3"/></svg>Terminar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="layer"></div>
+<div class="tooltip" id="tooltip"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="leaflet.js"></script>
+<script src="supabase.js"></script>
+<script src="config.js"></script>
+<script>window.SALCHI_ASSETS={"caminando": "goku-caminando.webp", "ladeando": "goku-ladeando.webp", "durmiendo": "goku-durmiendo.webp", "cara": "goku-cara.webp"};</script>
+<script src="app.js"></script>
+</body>
+</html>
