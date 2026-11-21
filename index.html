@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&family=Roboto:wght@500;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="leaflet.css">
-<link rel="stylesheet" href="styles.css?v=3">
+<link rel="stylesheet" href="styles.css?v=4">
 </head>
 <body>
 <div class="desk-bg" id="deskBg" aria-hidden="true"></div>
@@ -123,23 +123,26 @@
     <div class="live-map">
       <div class="map" id="liveMap"></div>
       <div class="map-pill" id="gpsPill"><span class="dot"></span><span id="gpsText">Buscando señal GPS…</span></div>
+      <button class="btn btn-white btn-sm pocket-btn" id="pocketBtn" aria-label="Modo bolsillo"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></svg>Bolsillo</button>
       <button class="btn btn-white btn-sm recenter" id="recenter"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>Centrar</button>
     </div>
     <div class="live-panel" id="livePanel">
       <div class="live-top"><span class="rec"></span><span id="liveTitle">Paseando</span><span class="tag" id="modeTag">GPS</span></div>
       <div class="timer" id="timer">00:00</div>
+      <p class="live-tip" id="liveTip">No bloquees el teléfono (pausa el GPS): usa <b>Bolsillo</b>.</p>
       <div class="live-stats">
         <div class="tile"><span>Distancia</span><b id="lDist">0,00<small>km</small></b></div>
         <div class="tile"><span>Ritmo</span><b id="lPace">–</b></div>
         <div class="tile"><span>Pasitos</span><b id="lSteps">0</b></div>
       </div>
       <div>
-        <div class="goal-row"><span>Meta de hoy</span><span id="lGoalTxt">0 / 60 min</span></div>
+        <div class="goal-row"><span id="lGoalLbl">Este paseo</span><span id="lGoalTxt">0 / 20 min</span></div>
         <div class="lane" id="lane">
           <svg class="lane-flag" viewBox="0 0 26 44" aria-hidden="true"><rect x="3" y="2" width="4" height="42" rx="2" fill="#1E1A1D"/><path d="M7 4h16l-5 7 5 7H7z" fill="#FF6B1A"/></svg>
           <img class="lane-dog" data-asset="caminando" alt="">
           <div class="goalbar"><i id="lGoalBar" style="width:0%"></i></div>
         </div>
+        <p class="lane-sub" id="lDaySub"></p>
       </div>
       <div class="follow-note" id="followNote" hidden></div>
       <div class="flags">
@@ -154,6 +157,7 @@
   </div>
 </div>
 
+<div class="pocket" id="pocket" hidden><div class="pk-in"><div class="pk-time" id="pkTime">00:00</div><div class="pk-info" id="pkInfo"></div><p>Modo bolsillo · el GPS sigue grabando<br>Toca dos veces para volver</p></div></div>
 <input type="file" id="photoInput" accept="image/*" multiple class="sr" tabindex="-1" aria-hidden="true">
 <div id="layer"></div>
 <div class="tooltip" id="tooltip"></div>
@@ -163,6 +167,6 @@
 <script src="supabase.js"></script>
 <script src="config.js"></script>
 <script>window.SALCHI_ASSETS={"caminando": "goku-caminando-sprite.webp", "ladeando": "goku-ladeando-sprite.webp", "durmiendo": "goku-durmiendo-sprite.webp", "cara": "goku-cara.webp"};</script>
-<script src="app.js?v=3"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

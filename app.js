@@ -105,14 +105,14 @@ const lsKey=k=>`salchipaseo.${k}.${(S.user&&S.user.id)||'x'}`;
    Estado
    ========================================================= */
 const S={mode:null,user:null,dogs:[],dog:null,walks:[],routes:[],photos:[],view:'perfil',histN:15,galFilter:'all'};
-const DEFAULT_DOG=()=>({id:null,name:'',birthDate:'',weight:9,ideal:9,size:'std',neutered:true,activity:'auto',kcal:3600,wake:'07:30',routine:null,goalMin:null,avatarPath:null});
+const DEFAULT_DOG=()=>({id:null,name:'',birthDate:'',weight:9,ideal:9,size:'std',neutered:true,activity:'auto',kcal:3600,wake:'07:30',routine:null,goalMin:null,avatarPath:null,walkMin:null});
 
 /* =========================================================
    Capa de datos
    ========================================================= */
 let sb=null;
-const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5),routine:Array.isArray(r.routine)?r.routine:null,goalMin:r.goal_minutes||null,avatarPath:r.avatar_path||null});
-const fromDog=d=>({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake,routine:d.routine&&d.routine.length?d.routine:null,goal_minutes:d.goalMin||null,avatar_path:d.avatarPath||null});
+const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5),routine:Array.isArray(r.routine)?r.routine:null,goalMin:r.goal_minutes||null,avatarPath:r.avatar_path||null,walkMin:r.walk_min_minutes||null,_c4:Object.prototype.hasOwnProperty.call(r,'walk_min_minutes')});
+const fromDog=d=>Object.assign({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake,routine:d.routine&&d.routine.length?d.routine:null,goal_minutes:d.goalMin||null,avatar_path:d.avatarPath||null},(d._c4||d.walkMin)?{walk_min_minutes:d.walkMin||null}:{});
 const toWalk=r=>({id:r.id,dogId:r.dog_id,routeId:r.route_id,start:Date.parse(r.started_at),duration:r.duration_s,distance:r.distance_m,preview:r.preview||[],pee:r.pee,poop:r.poop,mode:r.mode});
 const fromWalk=w=>({id:w.id,dog_id:w.dogId,route_id:w.routeId||null,started_at:new Date(w.start).toISOString(),duration_s:Math.round(w.duration),distance_m:Math.round(w.distance),points:w.points||null,preview:w.preview||null,pee:!!w.pee,poop:!!w.poop,mode:w.mode||'gps'});
 const toRoute=r=>({id:r.id,name:r.name,color:r.color||'orange',points:r.points||[],distance:r.distance_m||0,created:Date.parse(r.created_at)});
@@ -454,7 +454,7 @@ function renderProfile(){
   $('#pgCard').innerHTML=`
     <div class="pg-name"><h1>${esc(d.name)}</h1><button data-action="edit-dog" aria-label="Editar perfil">${I.pencil}</button></div>
     <div class="pg-hp"><i style="width:${Math.min(100,tm/goal*100)}%"></i></div>
-    <div class="pg-hptxt">${tm} / ${goal} MIN HOY</div>
+    <button class="pg-hptxt" data-action="edit-goals" aria-label="Editar metas">${tm} / ${goal} MIN HOY ${I.pencil}</button>
     <div class="pg-3">
       <div><b>${nf1.format(d.weight)}kg</b><span>Peso</span></div>
       <div class="mid pg-type"><i>${I.paw}</i><span>Salchicha</span></div>
@@ -546,6 +546,7 @@ function renderStats(){
   const tod=[['Mañana',5,12],['Mediodía',12,17],['Tarde',17,21],['Noche',21,29]].map(([l,a,b])=>({l,n:S.walks.filter(w=>{let h=new Date(w.start).getHours();if(h<5)h+=24;return h>=a&&h<b;}).length}));const todMax=Math.max(...tod.map(t=>t.n),1);
   const rc=S.routes.map(r=>({r,n:S.walks.filter(w=>w.routeId===r.id).length})).filter(x=>x.n).sort((a,b)=>b.n-a.n).slice(0,4);const free=S.walks.filter(w=>!routeById(w.routeId)).length;if(free)rc.push({r:{name:'Paseo libre',color:'ink'},n:free});const rMax=Math.max(...rc.map(x=>x.n),1);
   const hist=S.walks.slice(0,S.histN),pct=Math.round(projWeek/weekGoal*100);
+  const w14=walksBetween(addDays(dayStart(now),-13).getTime(),Date.now()+1),minOk={n:w14.length,ok:w14.filter(w=>w.duration>=perWalkMin()*60).length,avg:w14.length?sum(w14,'duration')/w14.length:0};
   body.innerHTML=`
   <div class="g2">
     <div class="card kpi"><span class="label"><span class="ic ic-orange">${I.clock}</span>Hoy</span><span class="big-num">${Math.round(tm)}<small>min</small></span><div class="goalbar"><i style="width:${Math.min(100,tm/goal*100)}%"></i></div><span class="foot">Meta: ${goal} min</span></div>
@@ -562,6 +563,8 @@ function renderStats(){
       <div class="est"><span>Si siguen así, este mes</span><b>≈ ${nf0.format(Math.round(avg.min*30/60))} h</b><small>≈ ${nf0.format(Math.round(avg.dist*30/1000))} km</small></div>
       <div class="est"><span>Velocidad promedio</span><b>${nf1.format(speed)} km/h</b><small>con olfateos incluidos</small></div>
       <div class="est"><span>Horario favorito</span><b>${pad(bh)}:00</b><small>a ${pad((bh+1)%24)}:00 h</small></div>
+      <div class="est"><span>Paseos sobre el mínimo</span><b>${minOk.ok} de ${minOk.n}</b><small>últimos 14 días · mínimo ${perWalkMin()} min</small></div>
+      <div class="est"><span>Paseo promedio</span><b>${minOk.n?fmtDur(minOk.avg):'–'}</b><small>duración por salida</small></div>
     </div>
     <p class="hint" style="margin-top:12px">${projWeek>=weekGoal?'Van muy bien: a este ritmo terminan la semana sobre la meta.':`Para llegar a la meta semanal necesitan ≈ ${Math.max(0,Math.round((weekGoal-weekMin)/(daysLeft+1)))} min diarios lo que queda de semana.`}</p></div>
   <div class="card"><div class="chart-head"><div><h3>Minutos por semana</h3><p>Últimas 6 semanas</p></div></div><div class="legend"><span><i style="background:#1F5EFF"></i>Real</span><span><i class="proj"></i>Proyección</span><span><i class="line"></i>Meta</span></div><div class="chart">${chart2}</div></div>
@@ -605,7 +608,9 @@ function renderHealth(){
       <div class="big-num">${goal}<small>min al día${p.goalMin?' · tu meta':''}</small></div><p class="muted" style="margin-top:6px;font-weight:700">${p.goalMin?`Recomendado: ${wr.total} min en ${wr.count} paseos`:`${wr.count} paseos de ~${wr.each} min`}</p>
       <div style="margin-top:14px"><div class="goal-row"><span>Hoy</span><span>${tm} / ${goal} min</span></div><div class="goalbar"><i style="width:${Math.min(100,tm/goal*100)}%"></i></div>
       <div class="goal-row" style="margin-top:10px"><span>Promedio ${avg.days||0} días</span><span>${Math.round(avg.min)} / ${goal} min</span></div><div class="goalbar"><i style="width:${Math.min(100,avg.min/goal*100)}%;background:var(--blue)"></i></div></div>
-      <p class="hint" style="margin-top:12px">${esc(wr.why)}</p></div>
+      <p class="hint" style="margin-top:12px">${esc(wr.why)}</p>
+      <div class="goal-chips"><span class="badge">${I.clock}Mínimo por paseo: ${perWalkMin()} min</span><span class="badge">${I.target}Meta diaria: ${goal} min</span></div>
+      <button class="btn btn-white btn-block btn-sm" data-action="edit-goals" style="margin-top:12px">${I.target}Editar metas de ${esc(p.name)}</button></div>
     ${alerts.map(([k,ic,t])=>`<div class="alert ${k}">${ic}<span>${t}</span></div>`).join('')}
     <div class="card"><div class="ctitle"><span class="ic ic-yellow">${I.clock}</span><h3>Rutina de hoy</h3><button class="btn btn-white btn-sm right" data-action="edit-routine">${I.pencil}Editar</button></div><div class="timeline">${tl}</div><p class="hint" style="margin-top:8px">${customRoutine()?'Rutina personalizada. Puedes volver a la recomendada cuando quieras.':'Rutina recomendada: paseo primero y comida 45 min después, así evitas ejercicio con la guata llena.'}</p></div>
     <div class="card"><div class="ctitle"><span class="ic ic-blue">${I.drop}</span><h3>Agua</h3></div><div class="big-num">${nf0.format(round5(en.water/10)*10)}<small>ml al día</small></div><p class="muted" style="margin-top:6px;font-weight:700">≈ ${nf1.format(en.water/250)} tazas. Lleva agua en paseos de más de 30 min.</p></div>
@@ -631,6 +636,7 @@ function renderSettings(){
     <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.paw}</span><h3>Mis perros</h3></div><div class="list">
       ${S.dogs.map(d=>`<button class="li ${d.id===S.dog.id?'on':''}" data-switch-dog="${d.id}"><img src="${avatarSrc(d)}" alt=""><span>${esc(d.name)}<small>${ageLabel(d)} · ${nf1.format(d.weight)} kg</small></span><span class="chev">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
       <button class="li" data-action="add-dog"><span class="ic ic-green">${I.plus}</span><span>Agregar otro perro</span></button>
+      <button class="li" data-action="edit-goals"><span class="ic ic-green">${I.target}</span><span>Metas de paseo<small>Mínimo ${perWalkMin()} min por paseo · ${dayGoal()} min al día</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-action="edit-routine"><span class="ic ic-yellow">${I.clock}</span><span>Rutina y horarios<small>${customRoutine()?'Personalizada':'Recomendada'} · meta ${dayGoal()} min</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-go="fotos"><span class="ic ic-pink">${I.camera}</span><span>Álbum de fotos<small>${S.photos.length} ${S.photos.length===1?'foto':'fotos'} de ${esc(S.dog.name)}</small></span><span class="chev">${I.chev}</span></button></div></div>
     <div class="card"><div class="ctitle"><span class="ic ic-blue">${I.down}</span><h3>Tus datos</h3></div><div class="list">
@@ -736,7 +742,7 @@ function importFile(e){
 /* =========================================================
    Mapas
    ========================================================= */
-let liveMap=null,liveLayers=null,livePin=null,trackBg=null,trackFg=null;
+let liveMap=null,liveLayers=null,livePin=null,trackBg=null,trackFg=null,tailLine=null,accCircle=null;
 function tiles(){return L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'});}
 const dogIcon=()=>L.divIcon({className:'dp-wrap',html:`<div class="dogpin"><img src="${avatarSrc(S.dog)}" alt=""></div>`,iconSize:[46,46],iconAnchor:[23,23]});
 const startIcon=()=>L.divIcon({className:'dp-wrap',html:'<div class="startpin"></div>',iconSize:[18,18],iconAnchor:[9,9]});
@@ -744,96 +750,152 @@ function ensureLiveMap(center){
   if(!window.L)return;
   if(!liveMap){liveMap=L.map('liveMap',{zoomControl:true}).setView(center,17);tiles().addTo(liveMap);liveLayers=L.layerGroup().addTo(liveMap);liveMap.on('dragstart',()=>{W.follow=false;});}
   else liveMap.setView(center,17);
-  liveLayers.clearLayers();livePin=null;setTimeout(()=>liveMap.invalidateSize(),80);
+  liveLayers.clearLayers();livePin=null;accCircle=null;tailLine=null;trackBg=trackFg=null;setTimeout(()=>liveMap.invalidateSize(),80);
 }
 function drawGhost(route){if(!liveMap||!route)return;L.polyline(route.points,{color:'#1F5EFF',weight:6,opacity:.55,dashArray:'1 12',lineCap:'round'}).addTo(liveLayers);L.marker(route.points[0],{icon:startIcon(),interactive:false}).addTo(liveLayers);}
-function resetTrack(){if(!liveMap)return;trackBg=L.polyline([],{color:'#fff',weight:12,lineCap:'round',lineJoin:'round'}).addTo(liveLayers);trackFg=L.polyline([],{color:'#FF6B1A',weight:6,lineCap:'round',lineJoin:'round'}).addTo(liveLayers);}
-function pushTrack(p){if(!liveMap||!trackBg)return;trackBg.addLatLng(p);trackFg.addLatLng(p);}
-function movePin(p){if(!liveMap)return;if(!livePin)livePin=L.marker(p,{icon:dogIcon(),zIndexOffset:1000,interactive:false}).addTo(liveLayers);else livePin.setLatLng(p);if(W.follow)liveMap.panTo(p,{animate:true,duration:.5});}
+function resetTrack(){if(!liveMap)return;trackBg=L.polyline([],{color:'#fff',weight:9,lineCap:'round',lineJoin:'round'}).addTo(liveLayers);trackFg=L.polyline([],{color:'#FF6B1A',weight:5,lineCap:'round',lineJoin:'round'}).addTo(liveLayers);tailLine=L.polyline([],{color:'#FF6B1A',weight:4,opacity:.55,dashArray:'2 8',lineCap:'round'}).addTo(liveLayers);}
+function movePin(p,acc){if(!liveMap)return;
+  if(acc!=null){if(!accCircle)accCircle=L.circle(p,{radius:acc,color:'#1F5EFF',weight:1,opacity:.45,fillColor:'#1F5EFF',fillOpacity:.1,interactive:false}).addTo(liveLayers);else{accCircle.setLatLng(p);accCircle.setRadius(acc);}}
+  if(!livePin)livePin=L.marker(p,{icon:dogIcon(),zIndexOffset:1000,interactive:false}).addTo(liveLayers);else livePin.setLatLng(p);if(W.follow)liveMap.panTo(p,{animate:true,duration:.5});}
 
 /* =========================================================
    Paseo en vivo
    ========================================================= */
-const W={active:false,paused:false,mode:'gps',elapsed:0,last:0,points:[],distance:0,watchId:null,timer:null,route:null,sim:null,pee:false,poop:false,started:0,follow:true,wakeLock:null,lastTs:0,gotFix:false,errShown:false,lastBackup:0,dogId:null};
+const W={active:false,paused:false,mode:'gps',elapsed:0,last:0,points:[],distance:0,watchId:null,timer:null,route:null,sim:null,pee:false,poop:false,started:0,follow:true,wakeLock:null,lastTs:0,gotFix:false,errShown:false,lastBackup:0,dogId:null,pausedMs:0,pauseStart:0,kf:null,cur:null,acc:null,lastMove:0,lastAccept:0,rejects:0,minReached:false,hiddenAt:0};
+/* ---------- GPS: filtro de Kalman + umbrales según precisión ---------- */
+const GPS={maxAcc:30,relaxAcc:50,minStep:5,maxSpeed:5,q:1.6,stillMs:20000};
+function Kalman(q){this.q=q;this.v=-1;}
+Kalman.prototype.process=function(lat,lng,acc,ts){acc=Math.max(acc,3);if(this.v<0){this.lat=lat;this.lng=lng;this.v=acc*acc;this.ts=ts;}else{const dt=Math.max(0,(ts-this.ts)/1000);this.ts=ts;this.v+=dt*this.q*this.q;const k=this.v/(this.v+acc*acc);this.lat+=k*(lat-this.lat);this.lng+=k*(lng-this.lng);this.v=(1-k)*this.v;}return [this.lat,this.lng];};
+/* Ramer–Douglas–Peucker: deja la línea recta donde caminaste recto (eps en metros) */
+function rdp(points,eps){
+  if(!points||points.length<3)return (points||[]).slice();
+  const lat0=points[0][0]*Math.PI/180,kx=111320*Math.cos(lat0),ky=110540;const P=points.map(p=>[p[1]*kx,p[0]*ky]);
+  const keep=new Uint8Array(points.length);keep[0]=keep[points.length-1]=1;const st=[[0,points.length-1]];
+  while(st.length){const [a,b]=st.pop();let max=0,idx=-1;const [x1,y1]=P[a],[x2,y2]=P[b],dx=x2-x1,dy=y2-y1,L2=dx*dx+dy*dy;
+    for(let i=a+1;i<b;i++){const [x,y]=P[i];let t=L2?((x-x1)*dx+(y-y1)*dy)/L2:0;t=Math.max(0,Math.min(1,t));const ex=x1+t*dx-x,ey=y1+t*dy-y,d=ex*ex+ey*ey;if(d>max){max=d;idx=i;}}
+    if(idx>0&&max>eps*eps){keep[idx]=1;st.push([a,idx],[idx,b]);}}
+  return points.filter((_,i)=>keep[i]);
+}
+const cleanTrack=pts=>pts.length>2?rdp(pts,3.5):pts.slice();
+const perWalkMin=()=>S.dog.walkMin||walkRec().each;
+function walkElapsed(){if(W.mode==='sim')return W.elapsed;const now=Date.now();return Math.max(0,(now-W.started-W.pausedMs-(W.paused?now-W.pauseStart:0))/1000);}
 function openStartSheet(){
   if(W.active){$('#live').hidden=false;return;}
   const left=Math.max(0,dayGoal()-Math.round(todayMin()));
-  const sh=openSheet(`<div class="sheet-head"><img data-asset="caminando" alt=""><div><h2>¿Salimos, ${esc(S.dog.name)}?</h2><p class="sub">${left?`Faltan ${left} min para la meta de hoy`:'Meta de hoy cumplida. ¡Un paseo extra nunca sobra!'}</p></div></div>
+  const sh=openSheet(`<div class="sheet-head"><img data-asset="caminando" alt=""><div><h2>¿Salimos, ${esc(S.dog.name)}?</h2><p class="sub">Mínimo de este paseo: <b>${perWalkMin()} min</b>. ${left?`Faltan ${left} min para la meta de hoy.`:'La meta de hoy ya está cumplida.'}</p></div></div>
     <button class="opt" data-action="start-free" style="background:var(--green);color:#fff"><span class="thumb" style="background:rgba(255,255,255,.2);display:grid;place-items:center">${I.play.replace('<svg','<svg width="28" height="28"')}</span><span><b>Paseo libre</b><small style="color:rgba(255,255,255,.85)">Graba un recorrido nuevo con GPS</small></span></button>
     ${S.routes.length?`<p class="flabel" style="margin:16px 2px 10px">Seguir una ruta guardada</p>${S.routes.map(r=>`<button class="opt" data-walk-route="${r.id}"><span class="thumb">${routeSVG(r.points,{w:58,h:58,bg:COLORS[r.color][0],pad:9,sw:3,blocks:false})}</span><span style="min-width:0"><b>${esc(r.name)}</b><small>${fmtKm(r.distance)} · ~${fmtDur(routeStats(r).avg)}</small></span><span class="go-ic">${I.chev}</span></button>`).join('')}`:''}
-    <button class="btn btn-ghost btn-block btn-sm" data-action="start-sim" style="margin-top:8px">Probar con un paseo simulado</button>`);
+    <div class="row-actions" style="margin-top:8px"><button class="btn btn-white btn-sm" data-action="edit-goals">${I.target}Cambiar metas</button><button class="btn btn-ghost btn-sm" data-action="start-sim">Simular</button></div>`);
 }
 function simPathFor(route){const base=route?route.points:densify(SAMPLE_DEFS[0].wps,10);const cum=[0];for(let i=1;i<base.length;i++)cum.push(cum[i-1]+dist(base[i-1],base[i]));return {path:base,cum,along:0,idx:0,total:cum[cum.length-1]};}
 function setPauseBtn(){$('#pauseBtn').innerHTML=(W.paused?I.play:I.pause)+`<span>${W.paused?'Seguir':'Pausar'}</span>`;}
+function watchOpts(){return {enableHighAccuracy:true,maximumAge:1000,timeout:20000};}
+function startWatch(){if(!('geolocation' in navigator)){gpsUnavailable('Este navegador no tiene GPS');return;}if(W.watchId!=null){try{navigator.geolocation.clearWatch(W.watchId);}catch(e){}}try{W.watchId=navigator.geolocation.watchPosition(onFix,onGpsErr,watchOpts());}catch(e){gpsUnavailable('No se pudo iniciar el GPS');}}
 function startWalk(mode,route){
   closeSheet(true);
   if(W.active){toast('Ya hay un paseo en curso');$('#live').hidden=false;return;}
-  Object.assign(W,{active:true,paused:false,mode,elapsed:0,last:performance.now(),points:[],distance:0,route:route||null,pee:false,poop:false,started:Date.now(),follow:true,lastTs:0,gotFix:false,errShown:false,sim:null,lastBackup:0,dogId:S.dog.id});
-  $('#live').hidden=false;$('#livePanel').classList.remove('paused');setPauseBtn();
+  Object.assign(W,{active:true,paused:false,mode,elapsed:0,last:performance.now(),points:[],distance:0,route:route||null,pee:false,poop:false,started:Date.now(),follow:true,lastTs:0,gotFix:false,errShown:false,sim:null,lastBackup:0,dogId:S.dog.id,pausedMs:0,pauseStart:0,kf:null,cur:null,acc:null,lastMove:Date.now(),lastAccept:0,rejects:0,minReached:false,hiddenAt:0});
+  $('#live').hidden=false;$('#livePanel').classList.remove('paused');$('#lane').classList.remove('reached');setPauseBtn();
   $('#liveTitle').textContent='Paseando con '+S.dog.name;
   setFlag('#flagPee',false);setFlag('#flagPoop',false);
   const tag=$('#modeTag');tag.textContent=mode==='sim'?'Simulación':'GPS';tag.classList.toggle('sim',mode==='sim');
+  $('#liveTip').hidden=mode==='sim';const wid=W.started;setTimeout(()=>{if(W.started===wid)$('#liveTip').hidden=true;},25000);
   const fn=$('#followNote');if(route){fn.hidden=false;fn.innerHTML=`${I.route}<span>Siguiendo <b>${esc(route.name)}</b> · ${fmtKm(route.distance)}</span>`;}else fn.hidden=true;
   if(mode==='sim'){W.sim=simPathFor(route);ensureLiveMap(W.sim.path[0]);drawGhost(route);resetTrack();setPill(`Simulación a velocidad x${SIM_SPEED}`,'ok');addPoint(W.sim.path[0]);}
   else{
     ensureLiveMap(route?route.points[0]:DEFAULT_CENTER);drawGhost(route);resetTrack();
     if(route&&liveMap)liveMap.fitBounds(L.latLngBounds(route.points),{padding:[30,30]});
-    if(!('geolocation' in navigator))gpsUnavailable('Este navegador no tiene GPS');
-    else{setPill('Buscando señal GPS…','warn');try{W.watchId=navigator.geolocation.watchPosition(onFix,onGpsErr,{enableHighAccuracy:true,maximumAge:3000,timeout:20000});}catch(e){gpsUnavailable('No se pudo iniciar el GPS');}}
+    setPill('Buscando señal GPS…','warn');startWatch();
   }
   clearInterval(W.timer);W.timer=setInterval(tick,250);requestWakeLock();updateLive();
 }
 function setPill(text,kind){$('#gpsText').textContent=text;$('#gpsPill').classList.toggle('warn',kind==='warn');}
 function gpsUnavailable(msg){setPill(msg+' · midiendo solo tiempo','warn');if(!W.errShown){W.errShown=true;toast(msg+'. Igual medimos el tiempo.',3800);}}
-function onFix(pos){
-  if(!W.active)return;const c=pos.coords,p=[c.latitude,c.longitude];
-  setPill(`GPS activo · ±${Math.round(c.accuracy)} m`,c.accuracy>35?'warn':'ok');
-  if(!W.gotFix){W.gotFix=true;if(liveMap&&!W.route)liveMap.setView(p,17);}
-  movePin(p);if(W.paused||c.accuracy>60)return;
-  const last=W.points[W.points.length-1];
-  if(last){const d=dist(last,p);if(d<4)return;const dt=(pos.timestamp-W.lastTs)/1000;if(dt>0&&d/dt>9)return;W.distance+=d;}
-  W.points.push(r6(p));W.lastTs=pos.timestamp;pushTrack(p);
+function accLimit(){const now=Date.now();return (W.lastAccept?now-W.lastAccept:now-W.started)>30000?GPS.relaxAcc:GPS.maxAcc;}
+function updatePill(){
+  if(W.mode==='sim'||!W.active)return;
+  if(!W.gotFix){setPill(W.acc?`Mejorando señal GPS… ±${Math.round(W.acc)} m`:'Buscando señal GPS…','warn');return;}
+  if(W.paused){setPill('En pausa · no suma distancia','warn');return;}
+  if(W.acc>accLimit()){setPill(`Señal débil · ±${Math.round(W.acc)} m`,'warn');return;}
+  if(Date.now()-W.lastMove>GPS.stillMs){setPill('Quieto · no suma distancia','warn');return;}
+  setPill(`GPS activo · ±${Math.round(W.acc)} m`,W.acc>20?'warn':'ok');
 }
+function onFix(pos){
+  if(!W.active||W.mode!=='gps')return;
+  const c=pos.coords,acc=c.accuracy||999,ts=pos.timestamp||Date.now();W.acc=acc;
+  if(acc>80){updatePill();return;}                       // demasiado imprecisa: ni la mostramos
+  if(!W.kf)W.kf=new Kalman(GPS.q);
+  const sp=W.kf.process(c.latitude,c.longitude,acc,ts);W.cur=sp;
+  const limit=accLimit();
+  if(acc<=limit&&!W.gotFix){W.gotFix=true;if(liveMap&&!W.route)liveMap.setView(sp,18);}
+  movePin(sp,acc);
+  if(acc>limit||W.paused||!W.gotFix){updateTail();updatePill();return;}
+  const last=W.points[W.points.length-1];
+  if(!last){acceptPoint(sp,ts,false);updatePill();return;}
+  const d=dist(last,sp),step=Math.max(GPS.minStep,Math.min(15,acc*0.6));
+  const stillBySpeed=c.speed!=null&&c.speed>=0&&c.speed<0.35&&d<12;
+  if(d<step||stillBySpeed){updateTail();updatePill();return;}
+  const dt=(ts-W.lastTs)/1000;
+  if(dt>0&&d/dt>GPS.maxSpeed){W.rejects++;if(W.rejects<4){updateTail();updatePill();return;}W.kf=new Kalman(GPS.q);W.cur=W.kf.process(c.latitude,c.longitude,acc,ts);}
+  W.rejects=0;acceptPoint(W.cur,ts,true);updatePill();
+}
+function acceptPoint(p,ts,moved){W.points.push(r6(p));W.lastTs=ts;W.lastAccept=Date.now();if(moved)W.lastMove=Date.now();redrawTrack();}
+function redrawTrack(){const s=cleanTrack(W.points);W.distance=pathLen(s);if(trackFg){trackBg.setLatLngs(s);trackFg.setLatLngs(s);}updateTail();}
+function updateTail(){if(!tailLine)return;const last=W.points[W.points.length-1];tailLine.setLatLngs(last&&W.cur&&!W.paused&&W.mode==='gps'?[last,W.cur]:[]);}
 function onGpsErr(err){if(!W.active)return;if(err.code===3&&W.gotFix)return;gpsUnavailable(err.code===1?'Sin permiso de ubicación':err.code===3?'El GPS está tardando':'No encontramos tu ubicación');}
-function addPoint(p){const last=W.points[W.points.length-1];if(last)W.distance+=dist(last,p);W.points.push(r6(p));pushTrack(p);movePin(p);}
+function addPoint(p){W.points.push(r6(p));W.lastMove=Date.now();redrawTrack();movePin(p,null);}
 function simStep(dt){const s=W.sim;if(!s)return;s.along+=dt*(0.95+Math.random()*0.25);
   if(s.along>=s.total){addPoint(s.path[s.path.length-1]);toast('¡Llegaron! Fin de la ruta.');stopWalk();return;}
   while(s.idx<s.cum.length-2&&s.cum[s.idx+1]<s.along)s.idx++;
   const a=s.path[s.idx],b=s.path[s.idx+1],seg=s.cum[s.idx+1]-s.cum[s.idx]||1,f=(s.along-s.cum[s.idx])/seg,p=[a[0]+(b[0]-a[0])*f,a[1]+(b[1]-a[1])*f];
-  const last=W.points[W.points.length-1];if(!last||dist(last,p)>=6)addPoint([p[0]+(Math.random()-.5)*0.000012,p[1]+(Math.random()-.5)*0.000012]);else movePin(p);}
+  const last=W.points[W.points.length-1];if(!last||dist(last,p)>=6)addPoint([p[0]+(Math.random()-.5)*0.000012,p[1]+(Math.random()-.5)*0.000012]);else movePin(p,null);}
 function tick(){
   if(!W.active)return;const now=performance.now(),dt=Math.min(2,(now-W.last)/1000);W.last=now;
-  if(!W.paused){const f=W.mode==='sim'?SIM_SPEED:1;W.elapsed+=dt*f;if(W.mode==='sim')simStep(dt*f);}
-  if(!W.active)return;updateLive();
+  if(W.mode==='sim'){if(!W.paused){W.elapsed+=dt*SIM_SPEED;simStep(dt*SIM_SPEED);}}
+  else W.elapsed=walkElapsed();
+  if(!W.active)return;updateLive();updatePill();
   if(S.mode==='cloud'&&W.mode==='gps'&&Date.now()-W.lastBackup>5000){W.lastBackup=Date.now();LS.set(lsKey('live'),snapshot());}
 }
-function snapshot(){return {mode:W.mode,started:W.started,elapsed:W.elapsed,distance:W.distance,points:thin(W.points,800),routeId:W.route&&W.route.id,pee:W.pee,poop:W.poop,dogId:W.dogId,savedAt:Date.now()};}
+function snapshot(){return {mode:W.mode,started:W.started,elapsed:walkElapsed(),distance:W.distance,points:thin(cleanTrack(W.points),800),routeId:W.route&&W.route.id,pee:W.pee,poop:W.poop,dogId:W.dogId,savedAt:Date.now()};}
 function updateLive(){
-  $('#timer').textContent=fmtClock(W.elapsed);
+  const el=W.elapsed;
+  $('#timer').textContent=fmtClock(el);
   $('#lDist').innerHTML=nf2.format(W.distance/1000)+'<small>km</small>';
-  const pc=fmtPace(W.distance,W.elapsed);$('#lPace').innerHTML=pc+(pc==='–'?'':'<small>/km</small>');
+  const pc=fmtPace(W.distance,el);$('#lPace').innerHTML=pc+(pc==='–'?'':'<small>/km</small>');
   $('#lSteps').textContent=nf0.format(Math.round(W.distance/DOG_STEP));
-  const goal=dayGoal(),done=todayMin()+W.elapsed/60,pr=Math.min(1,done/goal);
-  $('#lGoalTxt').textContent=`${Math.round(done)} / ${goal} min`;$('#lGoalBar').style.width=pr*100+'%';$('#lane').style.setProperty('--p',pr.toFixed(3));
+  const min=perWalkMin(),mins=el/60,pr=Math.min(1,mins/min);
+  $('#lGoalLbl').textContent=`Este paseo · mínimo ${min} min`;
+  $('#lGoalTxt').textContent=`${Math.floor(mins)} / ${min} min`;$('#lGoalBar').style.width=pr*100+'%';$('#lane').style.setProperty('--p',pr.toFixed(3));
+  const goal=dayGoal(),day=todayMin()+mins;$('#lDaySub').textContent=`Hoy: ${Math.round(day)} de ${goal} min${day>=goal?' · ¡meta diaria cumplida!':''}`;
+  if(!W.minReached&&mins>=min){W.minReached=true;$('#lane').classList.add('reached');toast(`¡Mínimo cumplido! ${min} min de paseo con ${S.dog.name}`,3500);try{navigator.vibrate&&navigator.vibrate([180,90,180]);}catch(e){}}
+  const pk=$('#pocket');if(pk&&!pk.hidden){$('#pkTime').textContent=fmtClock(el);$('#pkInfo').textContent=`${nf2.format(W.distance/1000)} km · ${Math.floor(mins)} de ${min} min`;}
 }
-function togglePause(){if(!W.active)return;W.paused=!W.paused;$('#livePanel').classList.toggle('paused',W.paused);setPauseBtn();toast(W.paused?'Paseo en pausa':'¡Seguimos!');}
+function togglePause(){if(!W.active)return;W.paused=!W.paused;if(W.paused)W.pauseStart=Date.now();else{W.pausedMs+=Date.now()-W.pauseStart;W.pauseStart=0;W.lastMove=Date.now();}$('#livePanel').classList.toggle('paused',W.paused);setPauseBtn();updateTail();updatePill();toast(W.paused?'Paseo en pausa':'¡Seguimos!');}
 function stopWalk(){
-  if(!W.active)return;W.active=false;clearInterval(W.timer);
+  if(!W.active)return;if(W.mode==='gps'){W.elapsed=walkElapsed();const last=W.points[W.points.length-1];if(last&&W.cur&&!W.paused&&dist(last,W.cur)>3){W.points.push(r6(W.cur));redrawTrack();}}W.active=false;clearInterval(W.timer);
   if(W.watchId!=null){try{navigator.geolocation.clearWatch(W.watchId);}catch(e){}W.watchId=null;}
-  releaseWakeLock();
-  openFinish({mode:W.mode,started:W.started,elapsed:W.elapsed,distance:W.distance,points:W.points.slice(),route:W.route,pee:W.pee,poop:W.poop,dogId:W.dogId});
+  releaseWakeLock();hidePocket();
+  openFinish({mode:W.mode,started:W.started,elapsed:W.elapsed,distance:W.distance,points:cleanTrack(W.points),route:W.route,pee:W.pee,poop:W.poop,dogId:W.dogId});
 }
-async function requestWakeLock(){try{if('wakeLock' in navigator)W.wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
+async function requestWakeLock(){try{if('wakeLock' in navigator&&document.visibilityState==='visible')W.wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
 function releaseWakeLock(){try{W.wakeLock&&W.wakeLock.release();}catch(e){}W.wakeLock=null;}
 function setFlag(sel,on){const b=$(sel);b.setAttribute('aria-pressed',on?'true':'false');}
+/* ---------- modo bolsillo: pantalla negra que mantiene el GPS activo ---------- */
+let pkTap=0;
+function showPocket(){const pk=$('#pocket');pk.hidden=false;requestWakeLock();updateLive();toast('Modo bolsillo: toca dos veces la pantalla para volver',3000);}
+function hidePocket(){const pk=$('#pocket');if(pk)pk.hidden=true;}
+$('#pocket').addEventListener('click',()=>{const n=Date.now();if(n-pkTap<450){hidePocket();pkTap=0;}else pkTap=n;});
+$('#pocketBtn').onclick=showPocket;
 
 /* ---------- terminar paseo ---------- */
 function openFinish(snap){
   const dog=S.dogs.find(d=>d.id===snap.dogId)||S.dog;
-  const canRoute=!snap.route&&snap.points.length>=5&&snap.distance>=50;
+  const canRoute=!snap.route&&snap.points.length>=2&&snap.distance>=50;
+  const minG=perWalkMin(),okMin=snap.elapsed/60>=minG;
   const color=COLOR_ORDER[S.routes.length%COLOR_ORDER.length];
   const sh=openSheet(`<div class="sheet-hero"><h2>¡Buen paseo!</h2><p>${fmtDur(snap.elapsed)} de paseo con ${esc(dog.name)}</p><img data-asset="ladeando" alt=""></div>
     <div class="summary"><div class="tile"><span>Tiempo</span><b>${fmtClock(snap.elapsed)}</b></div><div class="tile"><span>Distancia</span><b>${nf2.format(snap.distance/1000)}<small>km</small></b></div><div class="tile"><span>Ritmo</span><b>${fmtPace(snap.distance,snap.elapsed)}</b></div></div>
+    <div class="alert ${okMin?'good':'warn'}" style="margin-top:12px">${okMin?I.check:I.clock}<span>${okMin?`Cumpliste el mínimo de ${minG} min.`:`Faltaron ${Math.max(1,Math.ceil(minG-snap.elapsed/60))} min para el mínimo de ${minG} min.`}</span></div>
     <div style="margin:14px 0">${snap.route?`<div class="alert info">${I.route}<span>Paseo por <b>${esc(snap.route.name)}</b>. Lo sumamos a esa ruta.</span></div>`:
       canRoute?`<div style="border-radius:var(--r-sm);overflow:hidden;height:130px">${routeSVG(snap.points,{w:440,h:130,bg:COLORS[color][0],pad:20})}</div><label class="check" style="margin-top:12px"><input type="checkbox" id="saveRouteChk" checked> Guardar como ruta</label><input class="input" id="routeName" style="margin-top:10px" maxlength="60" placeholder="Nombre (ej: Vuelta a la plaza)">`:
       `<div class="alert info">${I.info}<span>No se registró recorrido (sin GPS o muy corto). Guardaremos el tiempo.</span></div>`}</div>
@@ -862,6 +924,29 @@ function checkLiveBackup(){
   if(S.mode!=='cloud')return;const b=LS.get(lsKey('live'));if(!b)return;
   if(Date.now()-b.savedAt>12*3600e3||!S.dogs.some(d=>d.id===b.dogId)){LS.del(lsKey('live'));return;}
   confirmSheet('Tienes un paseo sin terminar',`De ${fmtDur(b.elapsed)} (${fmtKm(b.distance,2)}). ¿Quieres guardarlo?`,'Revisar y guardar',async()=>{setTimeout(()=>openFinish({mode:b.mode,started:b.started,elapsed:b.elapsed,distance:b.distance,points:b.points||[],route:routeById(b.routeId)||null,pee:b.pee,poop:b.poop,dogId:b.dogId}),50);},false,()=>{LS.del(lsKey('live'));toast('Paseo descartado');},'Descartar');
+}
+
+/* =========================================================
+   METAS PERSONALIZADAS
+   ========================================================= */
+function openGoalsSheet(){
+  const rec=walkRec();let per=S.dog.walkMin||rec.each,day=S.dog.goalMin||rec.total;
+  const stepper=(id,val,chips,label,hint)=>`<div class="goal-box"><div class="goal-top"><span class="flabel">${label}</span></div>
+      <div class="stepper"><button type="button" class="st-btn" data-step="${id}" data-d="-5" aria-label="Menos">−</button><div class="st-val"><b id="${id}V">${val}</b><span>min</span></div><button type="button" class="st-btn" data-step="${id}" data-d="5" aria-label="Más">+</button></div>
+      <div class="st-chips">${chips.map(c=>`<button type="button" class="st-chip" data-set="${id}" data-v="${c}">${c} min</button>`).join('')}</div><p class="hint" style="margin-top:8px">${hint}</p></div>`;
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-green" style="width:56px;height:56px;border-radius:18px">${I.target}</span><div><h2>Metas de ${esc(S.dog.name)}</h2><p class="sub">Define el mínimo que lo vas a sacar a pasear.</p></div></div>
+    ${stepper('gPer',per,[15,20,30,45],'Mínimo por paseo',`Durante el paseo te avisamos cuando lo cumplas. Recomendado: ${rec.each} min.`)}
+    ${stepper('gDay',day,[30,45,60,90],'Meta diaria (suma de todos los paseos)',`Recomendado para ${esc(S.dog.name)}: ${rec.total} min en ${rec.count} paseos.`)}
+    <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" id="gReset">Usar recomendadas</button><button class="btn btn-orange" id="gSave">Guardar metas</button></div>`);
+  const vals={gPer:per,gDay:day};
+  const show=()=>{$('#gPerV',sh).textContent=vals.gPer;$('#gDayV',sh).textContent=vals.gDay;$$('.st-chip',sh).forEach(c=>c.classList.toggle('on',+c.dataset.v===vals[c.dataset.set]));};
+  $$('[data-step]',sh).forEach(b=>b.onclick=()=>{const k=b.dataset.step,lim=k==='gPer'?[5,240]:[5,300];vals[k]=Math.max(lim[0],Math.min(lim[1],vals[k]+(+b.dataset.d)));show();});
+  $$('[data-set]',sh).forEach(b=>b.onclick=()=>{vals[b.dataset.set]=+b.dataset.v;show();});show();
+  const save=async(perV,dayV,btn,msg)=>{const d=Object.assign({},S.dog,{walkMin:perV,goalMin:dayV});btn.disabled=true;btn.innerHTML='<span class="spin"></span>';
+    try{const saved=await DB.saveDog(d);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;closeSheet(true);renderAll();if(W.active)updateLive();toast(msg);}
+    catch(e){console.error(e);btn.disabled=false;btn.textContent='Guardar metas';toast(/walk_min|column/i.test(e.message||'')?'Falta actualizar la base de datos (migración v4)':'No se pudo guardar. Revisa tu conexión.',4500);}};
+  $('#gSave',sh).onclick=()=>{let p=vals.gPer,dd=vals.gDay;if(dd<p){dd=p;toast('La meta diaria no puede ser menor al mínimo por paseo: la igualamos.');}save(p,dd,$('#gSave',sh),`Metas guardadas: ${p} min por paseo · ${dd} min al día`);};
+  $('#gReset',sh).onclick=()=>save(null,null,$('#gReset',sh),'Volviste a las metas recomendadas');
 }
 
 /* =========================================================
@@ -1041,6 +1126,7 @@ document.addEventListener('click',async e=>{
   if(a==='start-sim'){startWalk('sim');return;}
   if(a==='edit-dog'){openEditDog();return;}
   if(a==='add-photo'){pickPhotos();return;}
+  if(a==='edit-goals'){closeSheet(true);openGoalsSheet();return;}
   if(a==='edit-routine'){closeSheet(true);openRoutineEditor(true);return;}
   if(a==='add-dog'){closeSheet(true);openOnboarding('add');return;}
   if(a==='export'){exportData();return;}
@@ -1068,7 +1154,13 @@ $('#onbCancel').onclick=()=>show('main');
 $('#demoBtn').onclick=enterDemo;
 $('#demoExit').onclick=resetToLogin;
 $('#googleBtn').onclick=loginGoogle;
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){if(W.active)requestWakeLock();else if(S.dog&&$('#scr-main').classList.contains('on'))renderProfile();}});
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState==='hidden'){if(W.active)W.hiddenAt=Date.now();return;}
+  if(W.active){requestWakeLock();
+    if(W.mode==='gps'){startWatch();if(liveMap){liveMap.invalidateSize();redrawTrack();}if(W.hiddenAt&&Date.now()-W.hiddenAt>15000)toast('El tiempo siguió corriendo. Con la pantalla apagada el GPS se pausa: usa el modo bolsillo.',5000);}
+    W.hiddenAt=0;W.elapsed=walkElapsed();updateLive();}
+  else if(S.dog&&$('#scr-main').classList.contains('on'))renderProfile();
+});
 let rsz;window.addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(S.view==='stats'&&S.dog)renderStats();},150);});
 
 /* =========================================================
