@@ -558,3 +558,33 @@ p{margin:0}
 .day{flex:1;max-width:44px;aspect-ratio:1;border-radius:50%;border:2.5px solid var(--line);background:#fff;font-weight:800;color:var(--ink-3)}
 .day.on{background:var(--ink);border-color:var(--ink);color:#fff}
 textarea.input{resize:vertical;min-height:84px;font-family:var(--f-body)}
+
+/* =========================================================
+   v4: GPS, modo bolsillo, metas
+   ========================================================= */
+.pocket-btn{position:absolute;z-index:500;right:12px;top:calc(12px + var(--safe-t))}
+.live-tip{font-size:12.5px;font-weight:700;color:var(--ink-3);margin-top:-4px;line-height:1.35}
+.lane-sub{font-size:13px;font-weight:700;color:var(--ink-3);margin-top:6px}
+.lane.reached .lane-flag path{fill:var(--green)}
+.lane.reached .goalbar i{background:linear-gradient(90deg,#18B05A,#2EE59D)}
+.pocket{position:fixed;inset:0;z-index:3000;background:#000;color:#5c5c5c;display:flex;align-items:center;justify-content:center;text-align:center;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+.pocket[hidden]{display:none!important}
+.pk-time{font-family:var(--f-display);font-size:64px;font-weight:600;color:#3d3d3d;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.pk-info{font-weight:800;font-size:16px;color:#4a4a4a;margin-top:4px}
+.pocket p{margin-top:28px;font-size:13px;font-weight:700;color:#3a3a3a;line-height:1.5}
+button.pg-hptxt{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;border:0;background:none;padding:4px 0;cursor:pointer}
+button.pg-hptxt svg{width:15px;height:15px;color:#B9C3C6}
+.goal-chips{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.goal-box{background:var(--cream);border-radius:var(--r);padding:14px 16px;margin-top:12px}
+.stepper{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:8px}
+.st-btn{width:52px;height:52px;border-radius:50%;border:0;background:#fff;font-family:var(--f-display);font-size:28px;font-weight:600;color:var(--ink);box-shadow:0 3px 0 var(--line);line-height:1}
+.st-btn:active{transform:translateY(2px);box-shadow:0 1px 0 var(--line)}
+.st-val{text-align:center;line-height:1}
+.st-val b{font-family:var(--f-display);font-weight:600;font-size:44px;letter-spacing:-.02em}
+.st-val span{display:block;font-size:13px;font-weight:800;color:var(--ink-3);margin-top:2px}
+.st-chips{display:flex;gap:8px;margin-top:12px}
+.st-chip{flex:1;border:2px solid var(--line);background:#fff;border-radius:999px;padding:7px 4px;font-weight:800;font-size:13px;color:var(--ink-2)}
+.st-chip.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.live-map .map-pill{max-width:calc(100% - 140px)}
+.live-panel{max-height:62vh;max-height:62dvh}
+.live-map{min-height:36vh}
