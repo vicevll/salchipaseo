@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&family=Roboto:wght@500;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="leaflet.css">
-<link rel="stylesheet" href="styles.css?v=7">
+<link rel="stylesheet" href="styles.css?v=8">
 </head>
 <body>
 <div class="desk-bg" id="deskBg" aria-hidden="true"></div>
@@ -50,13 +50,14 @@
   <section class="screen onboard" id="scr-onboard">
     <div class="onb-head" id="onbHead">
       <h1 id="onbTitle">¡Hola! Cuéntanos de tu salchicha</h1>
-      <p>Con estos datos calculamos su comida, paseos y metas.</p>
+      <p>Con estos datos calculamos sus paseos, metas y rutina.</p>
       <img data-asset="ladeando" alt="Salchicha ladeando la cabeza">
     </div>
     <div class="onb-body">
       <form class="form" id="onbForm" autocomplete="off" data-dogform></form>
       <button class="btn btn-orange btn-lg btn-block" id="onbSave" style="margin-top:18px">Crear perfil</button>
       <button class="btn btn-ghost btn-block" id="onbCancel" style="margin-top:12px" hidden>Cancelar</button>
+      <button class="btn btn-white btn-block" id="onbJoin" data-action="fam-join" style="margin-top:12px" hidden>¿Te invitaron? Tengo un código de familia</button>
     </div>
   </section>
 
@@ -68,6 +69,7 @@
     <!-- PERFIL -->
     <div class="view" id="v-perfil">
       <div class="pg-sky" id="pgSky">
+        <div class="pg-bg" id="pgBg"></div>
         <div class="bokeh" id="pgBokeh"></div>
         <div class="pg-top">
           <button class="dog-switch" id="dogSwitch" aria-label="Cambiar de perro"><img alt=""><span data-bind="dogname">Goku</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>
@@ -164,11 +166,11 @@
 <div class="tooltip" id="tooltip"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="app-nativa.js?v=7"></script>
+<script src="app-nativa.js?v=8"></script>
 <script src="leaflet.js"></script>
 <script src="supabase.js"></script>
 <script src="config.js"></script>
-<script>window.SALCHI_ASSETS={"caminando": "goku-caminando-sprite.webp", "ladeando": "goku-ladeando-sprite.webp", "durmiendo": "goku-durmiendo-sprite.webp", "cara": "goku-cara.webp"};</script>
-<script src="app.js?v=7"></script>
+<script>window.SALCHI_ASSETS={"caminando": "goku-caminando-sprite.webp", "ladeando": "goku-ladeando-sprite.webp", "durmiendo": "goku-durmiendo-sprite.webp", "cara": "goku-cara.webp", "ilu-feliz": "ilu-feliz.webp", "ilu-curioso": "ilu-curioso.webp", "ilu-guino": "ilu-guino.webp", "ilu-perfil": "ilu-perfil.webp", "ilu-dormilon": "ilu-dormilon.webp", "fondo-coral": "fondo-coral.webp", "fondo-huesitos": "fondo-huesitos.webp", "fondo-huellitas": "fondo-huellitas.webp", "fondo-nubes": "fondo-nubes.webp", "fondo-noche": "fondo-noche.webp"};</script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

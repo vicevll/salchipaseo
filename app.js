@@ -115,9 +115,9 @@ const DEFAULT_DOG=()=>({id:null,name:'',birthDate:'',weight:9,ideal:9,size:'std'
    Capa de datos
    ========================================================= */
 let sb=null;
-const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5),routine:Array.isArray(r.routine)?r.routine:null,goalMin:r.goal_minutes||null,avatarPath:r.avatar_path||null,walkMin:r.walk_min_minutes||null,_c4:Object.prototype.hasOwnProperty.call(r,'walk_min_minutes')});
-const fromDog=d=>Object.assign({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake,routine:d.routine&&d.routine.length?d.routine:null,goal_minutes:d.goalMin||null,avatar_path:d.avatarPath||null},(d._c4||d.walkMin)?{walk_min_minutes:d.walkMin||null}:{});
-const toWalk=r=>({id:r.id,dogId:r.dog_id,routeId:r.route_id,start:Date.parse(r.started_at),duration:r.duration_s,distance:r.distance_m,preview:r.preview||[],pee:r.pee,poop:r.poop,mode:r.mode});
+const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5),routine:Array.isArray(r.routine)?r.routine:null,goalMin:r.goal_minutes||null,avatarPath:r.avatar_path||null,walkMin:r.walk_min_minutes||null,_c4:Object.prototype.hasOwnProperty.call(r,'walk_min_minutes'),xp:typeof r.xp==='number'?r.xp:null,fondo:r.fondo||null,ownerId:r.user_id||null,_c8:Object.prototype.hasOwnProperty.call(r,'xp')});
+const fromDog=d=>Object.assign({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake,routine:d.routine&&d.routine.length?d.routine:null,goal_minutes:d.goalMin||null,avatar_path:d.avatarPath||null},(d._c4||d.walkMin)?{walk_min_minutes:d.walkMin||null}:{},(d._c8||d.fondo)?{fondo:d.fondo||null}:{});
+const toWalk=r=>({id:r.id,by:r.user_id||null,dogId:r.dog_id,routeId:r.route_id,start:Date.parse(r.started_at),duration:r.duration_s,distance:r.distance_m,preview:r.preview||[],pee:r.pee,poop:r.poop,mode:r.mode});
 const fromWalk=w=>({id:w.id,dog_id:w.dogId,route_id:w.routeId||null,started_at:new Date(w.start).toISOString(),duration_s:Math.round(w.duration),distance_m:Math.round(w.distance),points:w.points||null,preview:w.preview||null,pee:!!w.pee,poop:!!w.poop,mode:w.mode||'gps'});
 const toRoute=r=>({id:r.id,name:r.name,color:r.color||'orange',points:r.points||[],distance:r.distance_m||0,created:Date.parse(r.created_at)});
 const fromRoute=r=>({id:r.id,name:r.name,color:r.color,points:r.points,distance_m:Math.round(r.distance)});
@@ -137,8 +137,12 @@ const DB={
     try{const ph=chk(await sb.from('photos').select('path,thumb_path').eq('dog_id',id));const paths=ph.flatMap(p=>[p.path,p.thumb_path]).filter(Boolean);if(paths.length)await sb.storage.from(BUCKET).remove(paths);}catch(e){console.warn(e);}
     chk(await sb.from('dogs').delete().eq('id',id));},
   async listWalks(dogId){if(S.mode==='demo')return MEM.walks.filter(w=>w.dogId===dogId).sort((a,b)=>b.start-a.start);
-    return chk(await sb.from('walks').select('id,dog_id,route_id,started_at,duration_s,distance_m,preview,pee,poop,mode').eq('dog_id',dogId).order('started_at',{ascending:false}).limit(3000)).map(toWalk);},
+    return chk(await sb.from('walks').select('id,user_id,dog_id,route_id,started_at,duration_s,distance_m,preview,pee,poop,mode').eq('dog_id',dogId).order('started_at',{ascending:false}).limit(3000)).map(toWalk);},
   async addWalk(w){if(S.mode==='demo'){MEM.walks.push(w);return;}const {error}=await sb.from('walks').insert(fromWalk(w));if(error&&error.code!=='23505')throw error;},
+  async familia(dogId){if(S.mode!=='cloud')return null;const {data,error}=await sb.rpc('familia',{perro:dogId});if(error)throw error;return data||[];},
+  async invitar(dogId){const {data,error}=await sb.rpc('crear_invitacion',{perro:dogId});if(error)throw error;return data;},
+  async unirme(code){const {data,error}=await sb.rpc('unirme_a_familia',{codigo:code});if(error)throw error;return data;},
+  async salirFamilia(dogId,userId){chk(await sb.from('dog_members').delete().eq('dog_id',dogId).eq('user_id',userId));},
   async resetWalks(dogId){if(S.mode==='demo'){MEM.walks=MEM.walks.filter(w=>w.dogId!==dogId);return;}chk(await sb.from('walks').delete().eq('dog_id',dogId));},
   async deleteWalk(id){if(S.mode==='demo'){MEM.walks=MEM.walks.filter(w=>w.id!==id);return;}chk(await sb.from('walks').delete().eq('id',id));},
   async listRoutes(){if(S.mode==='demo')return MEM.routes.slice();return chk(await sb.from('routes').select('*').order('created_at')).map(toRoute);},
@@ -157,8 +161,11 @@ const DB={
   async updatePhoto(p,patch){if(S.mode==='demo'){Object.assign(p,patch);return;}const row={};if('caption' in patch)row.caption=patch.caption||null;if('favorite' in patch)row.favorite=patch.favorite;if('takenAt' in patch)row.taken_at=new Date(patch.takenAt).toISOString();chk(await sb.from('photos').update(row).eq('id',p.id));Object.assign(p,patch);},
   async deletePhoto(p){if(S.mode==='demo'){MEM.photos=MEM.photos.filter(x=>x.id!==p.id);return;}await sb.storage.from(BUCKET).remove([p.path,p.thumbPath].filter(Boolean));chk(await sb.from('photos').delete().eq('id',p.id));},
   async wipe(){if(S.mode==='demo'){MEM.dogs=[];MEM.walks=[];MEM.routes=[];MEM.photos=[];return;}
-    try{const ph=chk(await sb.from('photos').select('path,thumb_path'));const paths=ph.flatMap(p=>[p.path,p.thumb_path]).filter(Boolean);for(let i=0;i<paths.length;i+=100)await sb.storage.from(BUCKET).remove(paths.slice(i,i+100));chk(await sb.from('photos').delete().not('id','is',null));}catch(e){console.warn(e);}
-    chk(await sb.from('walks').delete().not('id','is',null));chk(await sb.from('routes').delete().not('id','is',null));chk(await sb.from('dogs').delete().not('id','is',null));}
+    const me=S.user.id;
+    try{const ph=chk(await sb.from('photos').select('path,thumb_path').eq('user_id',me));const paths=ph.flatMap(p=>[p.path,p.thumb_path]).filter(Boolean);for(let i=0;i<paths.length;i+=100)await sb.storage.from(BUCKET).remove(paths.slice(i,i+100));chk(await sb.from('photos').delete().eq('user_id',me));}catch(e){console.warn(e);}
+    chk(await sb.from('walks').delete().eq('user_id',me));chk(await sb.from('routes').delete().eq('user_id',me));
+    try{await sb.from('dog_members').delete().eq('user_id',me);}catch(e){}
+    chk(await sb.from('dogs').delete().eq('user_id',me));}
 };
 
 /* ---------- cola offline (modo nube) ---------- */
@@ -230,35 +237,24 @@ function firstWalkDay(){if(!S.walks.length)return null;return dayStart(Math.min(
 function avgDaily(n=14){const first=firstWalkDay();if(!first)return {min:0,dist:0,days:0};const days=daysSeries(n+1).slice(0,-1).filter(d=>d.date>=first);if(!days.length){const t=daysSeries(1)[0];return {min:t.min,dist:t.dist,days:1};}return {min:sum(days,'min')/days.length,dist:sum(days,'dist')/days.length,days:days.length};}
 function activityLevel(){const a=S.dog.activity;if(a!=='auto')return a;if(!S.walks.length)return 'normal';const r=avgDaily(14).min/walkRec().total;return r<0.6?'low':r>1.25?'high':'normal';}
 const ACT_LABEL={low:'baja',normal:'normal',high:'alta'};
-function energy(){
-  const p=S.dog,st=stage(),m=ageMonths(),ow=overweight();const w=ow?p.ideal:p.weight;const rer=70*Math.pow(Math.max(.5,w),0.75);let f,fl;
-  if(st==='puppy'){f=m<4?3.0:2.0;fl=m<4?'cachorro menor de 4 meses':'cachorro de 4 a 12 meses';}
-  else if(ow){f=1.0;fl='plan para bajar de peso (con peso ideal)';}
-  else if(st==='senior'){f=1.4;fl='senior';}
-  else{f=p.neutered?1.6:1.8;fl=p.neutered?'adulto esterilizado':'adulto no esterilizado';}
-  const act=activityLevel();let am=act==='low'?0.9:act==='high'?1.15:1;if(st==='puppy')am=1;
-  const kcal=rer*f*am,grams=kcal/(Math.max(1000,+p.kcal||3600)/1000),meals=st==='puppy'?(m<4?4:m<6?3:2):2;
-  return {rer,f,fl,am,act,kcal,grams,meals,perMeal:grams/meals,treats:kcal*0.1,water:p.weight*60,ow};
-}
-const MEAL_NAMES={2:['Desayuno','Cena'],3:['Desayuno','Almuerzo','Cena'],4:['Desayuno','Almuerzo','Once','Cena']};
 const dayGoal=()=>S.dog.goalMin||walkRec().total;
-const RTYPES={walk:{label:'Paseo',color:'#18B05A',icon:'walk'},meal:{label:'Comida',color:'#FF6B1A',icon:'bowl'},rest:{label:'Siesta',color:'#1F5EFF',icon:'moon'},meds:{label:'Remedio',color:'#E0558F',icon:'pill'},play:{label:'Juego',color:'#7C5CF0',icon:'ball'},groom:{label:'Aseo',color:'#19C3A6',icon:'bath'},other:{label:'Otro',color:'#7B7176',icon:'star'}};
+const RTYPES={walk:{label:'Paseo',color:'#18B05A',icon:'walk'},rest:{label:'Siesta',color:'#1F5EFF',icon:'moon'},meds:{label:'Remedio',color:'#E0558F',icon:'pill'},play:{label:'Juego',color:'#7C5CF0',icon:'ball'},groom:{label:'Aseo',color:'#19C3A6',icon:'bath'},other:{label:'Otro',color:'#7B7176',icon:'star'}};
 const rtype=t=>RTYPES[t]||RTYPES.other;
 function recommendedItems(){
-  const wr=walkRec(),en=energy(),wake=hm2min(S.dog.wake);
+  const wr=walkRec(),wake=hm2min(S.dog.wake);
   const walkT=wr.count===3?[wake+15,13*60,19*60]:[wake+15,19*60];
   const names=wr.count===3?['Paseo de la mañana','Paseo de mediodía','Paseo de la tarde']:['Paseo de la mañana','Paseo de la tarde'];
   const items=walkT.map((t,i)=>({t,type:'walk',label:names[i],detail:`${wr.each} min a ritmo tranquilo`}));
-  let mealT;if(en.meals===2)mealT=[walkT[0]+wr.each+45,walkT[walkT.length-1]+wr.each+45];else if(en.meals===3)mealT=[walkT[0]+wr.each+45,13*60+30,walkT[walkT.length-1]+wr.each+45];else mealT=[walkT[0]+wr.each+45,12*60,16*60,walkT[walkT.length-1]+wr.each+45];
-  mealT.forEach((t,i)=>items.push({t,type:'meal',label:MEAL_NAMES[en.meals][i],detail:`${round5(en.perMeal)} g de alimento`}));
   items.push({t:14*60+30,type:'rest',label:'Siesta larga',detail:'12 a 14 h de sueño al día'});
   return items.sort((a,b)=>a.t-b.t).map(x=>({id:uuid(),time:fmtHM(x.t),type:x.type,label:x.label,detail:x.detail,days:[]}));
 }
-const customRoutine=()=>Array.isArray(S.dog.routine)&&S.dog.routine.length>0;
+const sinComida=list=>(list||[]).filter(x=>x&&x.type!=='meal');
+const customRoutine=()=>Array.isArray(S.dog.routine)&&sinComida(S.dog.routine).length>0;
+const routineSrc=()=>customRoutine()?sinComida(S.dog.routine):recommendedItems();
 function walkCount(){if(!customRoutine())return walkRec().count;const d=new Date().getDay();return S.dog.routine.filter(x=>x.type==='walk'&&(!x.days||!x.days.length||x.days.includes(d))).length||walkRec().count;}
 function schedule(){
   const now=new Date(),nowMin=now.getHours()*60+now.getMinutes(),dow=now.getDay();
-  const src=customRoutine()?S.dog.routine:recommendedItems();
+  const src=routineSrc();
   const items=src.filter(x=>!x.days||!x.days.length||x.days.includes(dow)).map(x=>({t:hm2min(x.time),type:x.type,label:x.label||rtype(x.type).label,detail:x.detail||''}));
   items.sort((a,b)=>a.t-b.t);
   const slots=items.filter(i=>i.type==='walk');
@@ -273,7 +269,9 @@ function streakMax(){const days=[...daySet()].sort((a,b)=>a-b);let best=0,cur=0,
 const routeById=id=>S.routes.find(r=>r.id===id);
 function routeStats(r){const ws=S.walks.filter(w=>w.routeId===r.id);const avg=ws.length?sum(ws,'duration')/ws.length:r.distance/(3/3.6);return {times:ws.length,avg,last:ws.length?Math.max(...ws.map(w=>w.start)):null,est:!ws.length};}
 /* nivel: 1 XP por minuto + 10 XP por km */
-function levelInfo(){const xp=Math.round(sum(S.walks,'duration')/60+sum(S.walks,'distance')/100);const need=L=>50*L*(L-1);let L=Math.max(1,Math.floor((1+Math.sqrt(1+8*xp/100))/2));while(need(L+1)<=xp)L++;while(L>1&&need(L)>xp)L--;const a=need(L),b=need(L+1);return {xp,level:L,frac:(xp-a)/(b-a),toNext:b-xp};}
+const walkXp=w=>Math.max(0,Math.round((w.duration||0)/60+(w.distance||0)/100));
+function dogXp(d){d=d||S.dog;const calc=Math.round(sum(S.walks,'duration')/60+sum(S.walks,'distance')/100);return (S.mode==='cloud'&&d&&typeof d.xp==='number')?Math.max(0,d.xp):calc;}
+function levelInfo(){const xp=dogXp();const need=L=>50*L*(L-1);let L=Math.max(1,Math.floor((1+Math.sqrt(1+8*xp/100))/2));while(need(L+1)<=xp)L++;while(L>1&&need(L)>xp)L--;const a=need(L),b=need(L+1);return {xp,level:L,frac:(xp-a)/(b-a),toNext:b-xp};}
 const MEDALS=[
   {name:'Primer paseo',desc:'Completa tu primer paseo',color:'#18B05A',icon:'paw',test:s=>s.n>=1},
   {name:'Madrugador',desc:'Un paseo antes de las 7:30',color:'#FFB000',icon:'sun',test:s=>s.early},
@@ -395,10 +393,25 @@ requestAnimationFrame(spriteLoop);
 const urlCache=new Map();
 function urlFor(path){if(!path)return null;if(/^(blob:|data:|https?:)/.test(path))return path;const c=urlCache.get(path);return c&&c.exp>Date.now()?c.url:null;}
 async function ensureUrls(paths){
-  const need=[...new Set(paths.filter(p=>p&&!urlFor(p)))];if(!need.length||S.mode!=='cloud')return;
+  const need=[...new Set(paths.filter(p=>p&&!/^ilu:/.test(p)&&!urlFor(p)))];if(!need.length||S.mode!=='cloud')return;
   for(let i=0;i<need.length;i+=100){const {data,error}=await sb.storage.from(BUCKET).createSignedUrls(need.slice(i,i+100),3600);if(error){console.warn(error);continue;}(data||[]).forEach(d=>{if(d.signedUrl)urlCache.set(d.path,{url:d.signedUrl,exp:Date.now()+3300e3});});}
 }
-const avatarSrc=d=>(d&&urlFor(d.avatarPath))||ASSETS.cara||'';
+/* ---------- Avatar ilustrado (ilustración + fondo, se compone en un canvas) ---------- */
+const ILUS=[{id:'feliz',name:'Feliz'},{id:'curioso',name:'Curioso'},{id:'guino',name:'Guiño'},{id:'perfil',name:'De perfil'},{id:'dormilon',name:'Dormilón'}];
+const AV_FONDOS=[{id:'coral',name:'Coral'},{id:'huesitos',name:'Huesitos'},{id:'huellitas',name:'Huellitas'},{id:'nubes',name:'Nubes'},{id:'noche',name:'Noche'}];
+const parseAv=p=>{const m=/^ilu:([a-z]+):([a-z]+)$/.exec(p||'');return m&&ILUS.some(x=>x.id===m[1])&&AV_FONDOS.some(x=>x.id===m[2])?{ilu:m[1],fondo:m[2]}:null;};
+const avCache=new Map();
+const loadImg=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});
+async function composeAvatar(key){
+  if(avCache.has(key))return avCache.get(key);const a=parseAv(key);if(!a)return null;
+  const [bg,il]=await Promise.all([loadImg(ASSETS['fondo-'+a.fondo]),loadImg(ASSETS['ilu-'+a.ilu])]);
+  const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
+  x.drawImage(bg,0,0,256,256);x.drawImage(il,0,0,256,256);
+  let url;try{url=c.toDataURL('image/webp',0.9);}catch(e){url=ASSETS['ilu-'+a.ilu];}
+  avCache.set(key,url);return url;
+}
+async function ensureAvatars(dogs){for(const d of (dogs||[])){if(parseAv(d.avatarPath)){try{await composeAvatar(d.avatarPath);}catch(e){console.warn('avatar',e);}}}}
+const avatarSrc=d=>{if(!d)return ASSETS.cara||'';const a=parseAv(d.avatarPath);if(a)return avCache.get(d.avatarPath)||ASSETS['ilu-'+a.ilu]||ASSETS.cara||'';return urlFor(d.avatarPath)||ASSETS.cara||'';};
 function renderBinds(){$$('[data-bind="dogname"]').forEach(e=>e.textContent=S.dog?S.dog.name:'');const a=$('#dogSwitch img');if(a&&S.dog)a.src=avatarSrc(S.dog);}
 function renderAll(){if(!S.dog)return;renderBinds();renderProfile();renderRoutes();if(S.view==='stats')renderStats();renderHealth();if(S.view==='ajustes')renderSettings();if(S.view==='fotos')renderGallery();$('#demoBar').hidden=S.mode!=='demo';$('#scr-main').classList.toggle('demo',S.mode==='demo');updateSyncBar();}
 
@@ -420,7 +433,7 @@ let sheetClose=null;
 function openSheet(html,opts={}){
   closeSheet(true);
   const layer=$('#layer');
-  layer.innerHTML=`<div class="overlay" data-close></div><div class="sheet ${opts.cls||''}" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
+  layer.innerHTML=`<div class="overlay ${/no-anim/.test(opts.cls||'')?'no-anim':''}" data-close></div><div class="sheet ${opts.cls||''}" role="dialog" aria-modal="true"><div class="grab"></div>${html}</div>`;
   const sh=$('.sheet',layer);bindAssets(sh);
   sheetClose=opts.onClose||null;
   if(!opts.sticky)$('.overlay',layer).onclick=()=>closeSheet();
@@ -439,10 +452,8 @@ function confirmSheet(title,text,okLabel,onOk,danger=true,onCancel=null,cancelLa
    ========================================================= */
 function renderProfile(){
   const d=S.dog,lv=levelInfo(),night=isNight();
-  const sky=$('#pgSky');sky.classList.toggle('night',night);
+  const sky=$('#pgSky');applyFondo();sky.classList.toggle('night',night&&sky.dataset.fondo==='cielo');
   const asset=night?'durmiendo':'ladeando';if($('#pgDog').dataset.asset!==asset){$('#pgDog').dataset.asset=asset;}bindAssets(sky);$('#pgDog').classList.toggle('sleep',night);
-  if(!$('#pgBokeh').innerHTML){const R=rng(3);let b='';for(let i=0;i<6;i++){const s=60+R()*120;b+=`<span style="width:${s}px;height:${s}px;left:${R()*90}%;top:${R()*80}%"></span>`;}
-    [[12,36],[86,30],[92,60],[7,66],[74,48]].forEach(([x,y],i)=>{b+=`<i style="left:${x}%;top:${y}%;animation-delay:${i*.6}s"></i>`;});$('#pgBokeh').innerHTML=b;}
   $('#pgLvlNum').textContent=lv.level;
   const cx=200,cy=192,r=176,th=Math.PI-Math.PI*Math.max(0.001,Math.min(.999,lv.frac));const px=cx+r*Math.cos(th),py=cy-r*Math.sin(th);
   let sparks='';for(let i=1;i<=5;i++){const t2=th+i*0.035;sparks+=`<circle cx="${(cx+(r+(i%2?6:-6))*Math.cos(t2)).toFixed(1)}" cy="${(cy-(r+(i%2?6:-6))*Math.sin(t2)).toFixed(1)}" r="${2.2-i*.3}" fill="#fff" opacity="${1-i*.15}"/>`;}
@@ -576,9 +587,9 @@ function renderStats(){
   <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.sun}</span><h3>¿A qué hora pasean?</h3></div><div class="hbars">${tod.map(t=>`<div class="hbar"><span>${t.l}</span><div class="track"><i style="width:${t.n/todMax*100}%"></i></div><em>${t.n}</em></div>`).join('')}</div></div>
   <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.route}</span><h3>Rutas más usadas</h3></div><div class="hbars">${rc.map(x=>`<div class="hbar" style="grid-template-columns:120px 1fr 34px"><span title="${esc(x.r.name)}">${esc(x.r.name)}</span><div class="track"><i style="width:${x.n/rMax*100}%;background:${(COLORS[x.r.color]||COLORS.orange)[0]}"></i></div><em>${x.n}</em></div>`).join('')}</div></div>
   <div class="card"><div class="ctitle"><span class="ic ic-green">${I.paw}</span><h3>Historial</h3><span class="badge">${S.walks.length} paseos</span></div>
-    <div class="history">${hist.map(w=>{const r=routeById(w.routeId);return `<div class="hrow"><div class="thumb">${routeSVG(walkPts(w),{w:48,h:48,bg:walkColor(w),pad:8,sw:3,blocks:false})}</div>
-      <div class="name">${esc(r?r.name:'Paseo libre')}<span class="ico">${w.pee?I.pee:''}${w.poop?I.poop:''}</span><small>${relDay(w.start)} · ${timeOf(w.start)}</small></div>
-      <div class="val">${fmtDur(w.duration)}<small>${fmtKm(w.distance)}</small></div><button class="icon-btn" data-del-walk="${w.id}" aria-label="Eliminar paseo">${I.trash}</button></div>`;}).join('')}</div>
+    <div class="history">${(()=>{const fn=famNames(),multi=Object.keys(fn).length>1,me=S.user&&S.user.id;return hist.map(w=>{const r=routeById(w.routeId);const quien=multi&&w.by?(w.by===me?'tú':fn[w.by]||''):'';return `<div class="hrow"><div class="thumb">${routeSVG(walkPts(w),{w:48,h:48,bg:walkColor(w),pad:8,sw:3,blocks:false})}</div>
+      <div class="name">${esc(r?r.name:'Paseo libre')}<span class="ico">${w.pee?I.pee:''}${w.poop?I.poop:''}</span><small>${relDay(w.start)} · ${timeOf(w.start)}${quien?` · <span class="by">${esc(quien)}</span>`:''}</small></div>
+      <div class="val">${fmtDur(w.duration)}<small>${fmtKm(w.distance)}</small></div><button class="icon-btn" data-del-walk="${w.id}" aria-label="Eliminar paseo">${I.trash}</button></div>`;}).join('');})()}</div>
     ${S.walks.length>S.histN?`<button class="btn btn-white btn-block btn-sm" id="moreHist" style="margin-top:10px">Ver más</button>`:''}</div>`;
   const mh=$('#moreHist');if(mh)mh.onclick=()=>{S.histN+=20;renderStats();};
 }
@@ -587,11 +598,11 @@ function renderStats(){
    SALUD
    ========================================================= */
 function renderHealth(){
-  const p=S.dog,en=energy(),wr=walkRec(),st=stage(),sc=schedule(),tm=Math.round(todayMin()),avg=avgDaily(14),goal=dayGoal(),avgOk=avg.min>=goal*0.9;
+  const p=S.dog,wr=walkRec(),st=stage(),sc=schedule(),tm=Math.round(todayMin()),avg=avgDaily(14),goal=dayGoal(),avgOk=avg.min>=goal*0.9;
   const month=new Date().getMonth(),hot=[10,11,0,1,2].includes(month),cold=[5,6,7].includes(month);
   const alerts=[];
-  if(en.ow)alerts.push(['warn',I.scale,`${esc(p.name)} está ${nf1.format(p.weight-p.ideal)} kg sobre su peso ideal. Calculamos la comida con el peso ideal y sumamos 10 min de paseo.`]);
-  else if(underweight())alerts.push(['warn',I.scale,`${esc(p.name)} está bajo su peso ideal. Consulta con el veterinario antes de aumentar la porción.`]);
+  if(overweight())alerts.push(['warn',I.scale,`${esc(p.name)} está ${nf1.format(p.weight-p.ideal)} kg sobre su peso ideal. Sumamos 10 min de paseo a su recomendación diaria.`]);
+  else if(underweight())alerts.push(['warn',I.scale,`${esc(p.name)} está bajo su peso ideal. Conviene consultarlo con el veterinario.`]);
   else alerts.push(['good',I.check,`Peso en rango: ${nf1.format(p.weight)} kg (ideal ${nf1.format(p.ideal)} kg).`]);
   if(hot)alerts.push(['warn',I.thermo,'Temporada de calor: evita pasear entre 12:00 y 17:00. La vereda quema y las salchichas van muy cerca del suelo.']);
   if(cold)alerts.push(['info',I.coat,'Hace frío: con patas cortas y panza cerca del suelo, un abriguito ayuda en los paseos.']);
@@ -604,11 +615,6 @@ function renderHealth(){
     tl+=`<div class="tl-item ${it.done&&it.type!=='walk'?'past':''}"><span class="time">${fmtHM(it.t)}</span><span class="node" style="background:${bg}">${ic}</span><span class="what">${esc(it.label)}<small>${esc(it.detail)}</small></span>${badge}</div>`;});
   if(!placed)tl+=`<div class="tl-now"><span>${fmtHM(sc.nowMin)}</span><span class="nd"></span><span>Ahora</span></div>`;
   $('#healthBody').innerHTML=`
-    <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.bowl}</span><h3>Cuánto comer</h3><span class="badge">${STAGE_LABEL[st]}</span></div>
-      <div class="big-num">${round5(en.grams)}<small>g al día</small></div>
-      <p class="muted" style="margin-top:6px;font-weight:700">≈ ${nf0.format(Math.round(en.kcal))} kcal · alimento de ${nf0.format(p.kcal)} kcal/kg</p>
-      <div class="portion">${MEAL_NAMES[en.meals].map(m=>`<div class="bowl"><span>${m}</span><b>${round5(en.perMeal)} g</b></div>`).join('')}<div class="bowl" style="background:var(--yellow-3)"><span>Premios máx.</span><b>${Math.round(en.treats)} kcal</b></div></div>
-      <p class="hint" style="margin-top:12px">Cálculo: 70 × ${nf1.format(en.ow?p.ideal:p.weight)} kg<sup>0,75</sup> × ${nf1.format(en.f)} (${en.fl})${st!=='puppy'?` × ${nf2.format(en.am)} (actividad ${ACT_LABEL[en.act]}${p.activity==='auto'?' según sus paseos':''})`:''}.</p></div>
     <div class="card"><div class="ctitle"><span class="ic ic-green">${I.walk}</span><h3>Paseo ideal</h3><span class="badge ${avgOk?'good':'warn'}">${avgOk?I.check+'Van bien':I.alert+'Falta movimiento'}</span></div>
       <div class="big-num">${goal}<small>min al día${p.goalMin?' · tu meta':''}</small></div><p class="muted" style="margin-top:6px;font-weight:700">${p.goalMin?`Recomendado: ${wr.total} min en ${wr.count} paseos`:`${wr.count} paseos de ~${wr.each} min`}</p>
       <div style="margin-top:14px"><div class="goal-row"><span>Hoy</span><span>${tm} / ${goal} min</span></div><div class="goalbar"><i style="width:${Math.min(100,tm/goal*100)}%"></i></div>
@@ -618,14 +624,13 @@ function renderHealth(){
       <button class="btn btn-white btn-block btn-sm" data-action="edit-goals" style="margin-top:12px">${I.target}Editar metas de ${esc(p.name)}</button></div>
     ${alerts.map(([k,ic,t])=>`<div class="alert ${k}">${ic}<span>${t}</span></div>`).join('')}
     <div class="card"><div class="ctitle"><span class="ic ic-yellow">${I.clock}</span><h3>Rutina de hoy</h3><button class="btn btn-white btn-sm right" data-action="edit-routine">${I.pencil}Editar</button></div><div class="timeline">${tl}</div><p class="hint" style="margin-top:8px">${customRoutine()?'Rutina personalizada. Puedes volver a la recomendada cuando quieras.':'Rutina recomendada: paseo primero y comida 45 min después, así evitas ejercicio con la guata llena.'}</p></div>
-    <div class="card"><div class="ctitle"><span class="ic ic-blue">${I.drop}</span><h3>Agua</h3></div><div class="big-num">${nf0.format(round5(en.water/10)*10)}<small>ml al día</small></div><p class="muted" style="margin-top:6px;font-weight:700">≈ ${nf1.format(en.water/250)} tazas. Lleva agua en paseos de más de 30 min.</p></div>
     <div class="card sleep-card"><div><div class="ctitle" style="margin-bottom:6px"><span class="ic" style="background:rgba(255,255,255,.2);color:#fff">${I.moon}</span><h3>Descanso</h3></div><div class="big-num" style="color:#fff">12–14<small style="color:rgba(255,255,255,.8)">h</small></div><p class="muted" style="margin-top:6px;font-weight:700">${tm>=goal?'Hoy se ganó una siesta de campeón.':'Cama cómoda y sin escaleras.'}</p></div><img data-asset="durmiendo" alt="Salchicha durmiendo"></div>
     <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.heart}</span><h3>Cuidados de salchicha</h3></div><div class="tips">
       <div class="tip"><span class="ic ic-pink">${I.spine}</span><div><b>Cuida su espalda</b><p>Nada de saltos desde el sillón ni escaleras. Al tomarlo, sujeta pecho y trasero a la vez.</p></div></div>
       <div class="tip"><span class="ic ic-blue">${I.harness}</span><div><b>Arnés, no collar</b><p>El arnés reparte la fuerza en el pecho y protege su cuello y columna.</p></div></div>
-      <div class="tip"><span class="ic ic-orange">${I.bowl}</span><div><b>Comer y pasear</b><p>Espera cerca de una hora después de comer antes de jugar fuerte.</p></div></div>
+      <div class="tip"><span class="ic ic-orange">${I.paw}</span><div><b>Revisa sus patas</b><p>Al volver del paseo mira sus almohadillas: piedritas, cortes o espigas se detectan rápido.</p></div></div>
       <div class="tip"><span class="ic ic-green">${I.thermo}</span><div><b>Test de los 7 segundos</b><p>Si no aguantas la mano 7 segundos en la vereda, está muy caliente para sus patas.</p></div></div></div></div>
-    <p class="disclaimer">Recomendaciones orientativas basadas en fórmulas veterinarias generales. Ante dudas de dieta, peso o salud, consulta con tu veterinario.</p>`;
+    <p class="disclaimer">Recomendaciones orientativas basadas en fórmulas veterinarias generales. Ante dudas de peso o salud, consulta con tu veterinario.</p>`;
   bindAssets($('#healthBody'));
 }
 
@@ -640,11 +645,17 @@ function renderSettings(){
       ${S.mode==='cloud'?`<div class="list" style="margin-top:12px"><button class="li" data-action="set-password"><span class="ic ic-orange">${I.lock}</span><span>Contraseña para la app<small>${IS_APP?'Cámbiala cuando quieras':'Para entrar en la app de iPhone con tu correo'}</small></span><span class="chev">${I.chev}</span></button></div>`:''}
       ${S.mode==='demo'?(IS_APP?`<button class="btn btn-orange btn-block" style="margin-top:14px" data-action="to-login">Iniciar sesión</button>`:`<button class="btn-google" style="margin-top:14px" data-action="to-login">${$('#googleBtn svg').outerHTML}Iniciar sesión con Google</button>`):''}</div>
     <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.paw}</span><h3>Mis perros</h3></div><div class="list">
-      ${S.dogs.map(d=>`<button class="li ${d.id===S.dog.id?'on':''}" data-switch-dog="${d.id}"><img src="${avatarSrc(d)}" alt=""><span>${esc(d.name)}<small>${ageLabel(d)} · ${nf1.format(d.weight)} kg</small></span><span class="chev">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
+      ${S.dogs.map(d=>`<button class="li ${d.id===S.dog.id?'on':''}" data-switch-dog="${d.id}"><img src="${avatarSrc(d)}" alt=""><span>${esc(d.name)}<small>${ageLabel(d)} · ${nf1.format(d.weight)} kg${S.mode==='cloud'&&!isOwner(d)?' · familia':''}</small></span><span class="chev">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
       <button class="li" data-action="add-dog"><span class="ic ic-green">${I.plus}</span><span>Agregar otro perro</span></button>
+      <button class="li" data-action="customize"><span class="ic ic-orange">${I.star}</span><span>Avatar y fondo de ${esc(S.dog.name)}<small>NV ${levelInfo().level} · ${fondosHasta(levelInfo().level).length} de ${FONDOS.length} fondos desbloqueados</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-action="edit-goals"><span class="ic ic-green">${I.target}</span><span>Metas de paseo<small>Mínimo ${perWalkMin()} min por paseo · ${dayGoal()} min al día</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-action="edit-routine"><span class="ic ic-yellow">${I.clock}</span><span>Rutina y horarios<small>${customRoutine()?'Personalizada':'Recomendada'} · meta ${dayGoal()} min</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-go="fotos"><span class="ic ic-pink">${I.camera}</span><span>Álbum de fotos<small>${S.photos.length} ${S.photos.length===1?'foto':'fotos'} de ${esc(S.dog.name)}</small></span><span class="chev">${I.chev}</span></button></div></div>
+    ${S.mode==='cloud'?`<div class="card"><div class="ctitle"><span class="ic ic-pink">${I.heart}</span><h3>Familia de ${esc(S.dog.name)}</h3></div>
+      <div class="list" id="famList"></div>
+      <div class="row-actions" style="margin-top:12px"><button class="btn btn-orange btn-sm" data-action="fam-invite">${I.plus}Invitar</button><button class="btn btn-white btn-sm" data-action="fam-join">Tengo un código</button></div>
+      <p class="hint" style="margin-top:10px">Comparte a ${esc(S.dog.name)} con otra persona: los dos registran paseos desde su teléfono y todo queda en el mismo perfil.</p>
+      <button class="btn btn-ghost btn-sm btn-block" id="famLeave" data-action="fam-leave" style="margin-top:6px;color:var(--red)" hidden>Salir de esta familia</button></div>`:''}
     <div class="card"><div class="ctitle"><span class="ic ic-blue">${I.down}</span><h3>Tus datos</h3></div><div class="list">
       <button class="li" data-action="export"><span class="ic ic-blue">${I.down}</span><span>Exportar respaldo<small>Archivo .json con perfiles, rutas y paseos</small></span><span class="chev">${I.chev}</span></button>
       <label class="li" for="importFile" style="cursor:pointer"><span class="ic ic-blue">${I.up}</span><span>Importar respaldo<small>Agrega rutas y paseos desde un .json</small></span><span class="chev">${I.chev}</span></label>
@@ -654,7 +665,7 @@ function renderSettings(){
     ${IS_APP?(()=>{const st=remState(),tm=walkTimes();return `<div class="card"><div class="ctitle"><span class="ic ic-orange">${I.bell}</span><h3>Avisos</h3></div><div class="list">
       ${S.mode==='cloud'?`<button class="li" data-action="rem-toggle" role="switch" aria-checked="${st.on}"><span class="ic ic-green">${I.walk}</span><span>Recordarme los paseos<small>${tm.length?esc(tm.join(' · ')):'Según la rutina de '+esc(S.dog.name)}</small></span><span class="toggle ${st.on?'on':''}"><i></i></span></button>
       ${st.on?`<div class="li static"><span class="ic ic-yellow">${I.clock}</span><span>Avisarme<div class="st-chips rem-chips">${REM_BEFORE.map(m=>`<button type="button" class="st-chip ${st.before===m?'on':''}" data-rem-before="${m}">${m?m+' min antes':'A la hora'}</button>`).join('')}</div></span></div>
-      <button class="li" data-action="rem-others" role="switch" aria-checked="${st.others}"><span class="ic ic-orange">${I.bowl}</span><span>También comidas y remedios<small>Según la rutina de ${esc(S.dog.name)}</small></span><span class="toggle ${st.others?'on':''}"><i></i></span></button>`:''}`:''}
+      <button class="li" data-action="rem-others" role="switch" aria-checked="${st.others}"><span class="ic ic-pink">${I.pill}</span><span>También los remedios<small>Según la rutina de ${esc(S.dog.name)}</small></span><span class="toggle ${st.others?'on':''}"><i></i></span></button>`:''}`:''}
       <button class="li" data-action="test-notif"><span class="ic ic-blue">${I.bell}</span><span>Probar un aviso<small>Llega en 1 minuto, aunque cierres la app</small></span><span class="chev">${I.chev}</span></button>
       </div><p class="hint" style="margin-top:8px">Los horarios salen de <b>Rutina y horarios</b>: si los cambias, los avisos se actualizan solos. Durante el paseo verás el tiempo en la pantalla bloqueada y te avisamos cuando se cumpla el mínimo.</p></div>`;})():''}
     <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.phone}</span><h3>${IS_APP?'App de iPhone':'Úsala como app'}</h3></div>
@@ -665,6 +676,7 @@ function renderSettings(){
     <p class="disclaimer">Salchipaseo · v2.0</p>`;
   bindAssets($('#settingsBody'));
   $('#importFile').onchange=importFile;
+  if(S.mode==='cloud'){renderFamilyCard();if(!S.fam||S.fam.dogId!==S.dog.id)loadFamily(S.dog.id);}
 }
 
 /* =========================================================
@@ -678,9 +690,8 @@ function dogFormHTML(d){
     <div class="field full"><span class="flabel">Tamaño</span><div class="seg" data-seg="size"><button type="button" data-v="mini">Miniatura</button><button type="button" data-v="std">Estándar</button></div></div>
     <div class="field full"><span class="flabel">Esterilizado</span><div class="seg" data-seg="neutered"><button type="button" data-v="1">Sí</button><button type="button" data-v="0">No</button></div></div>
     <div class="field full"><span class="flabel">Nivel de actividad</span><div class="seg" data-seg="activity"><button type="button" data-v="auto">Auto</button><button type="button" data-v="low">Baja</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="high">Alta</button></div></div>
-    <div class="field"><label for="fKcal">Alimento (kcal/kg)</label><input class="input" id="fKcal" type="number" inputmode="numeric" min="1500" max="6000" step="50" value="${d.kcal}"></div>
     <div class="field"><label for="fWake">Se despierta</label><input class="input" id="fWake" type="time" value="${esc(d.wake)}"></div>
-    <p class="hint full" style="grid-column:1/-1">Las kcal/kg vienen en el saco del alimento (suele estar entre 3.300 y 4.000). «Auto» calcula la actividad según sus paseos reales.</p>`;
+    <p class="hint full" style="grid-column:1/-1">«Auto» calcula la actividad según sus paseos reales.</p>`;
 }
 function mountDogForm(root,d){
   root.innerHTML=dogFormHTML(d);root._seg={size:d.size,neutered:d.neutered?'1':'0',activity:d.activity};
@@ -690,12 +701,12 @@ function readDogForm(root,base){
   const num=(id,def,min,max)=>{const v=parseFloat($(id,root).value);return isNaN(v)?def:Math.max(min,Math.min(max,v));};
   const name=$('#fName',root).value.trim();if(!name){toast('Ponle un nombre a tu perro');$('#fName',root).focus();return null;}
   const weight=num('#fWeight',9,0.5,40);
-  return Object.assign({},base,{name,birthDate:$('#fBirth',root).value||'',weight,ideal:num('#fIdeal',weight,0.5,40),size:root._seg.size,neutered:root._seg.neutered==='1',activity:root._seg.activity,kcal:num('#fKcal',3600,1500,6000),wake:$('#fWake',root).value||'07:30'});
+  return Object.assign({},base,{name,birthDate:$('#fBirth',root).value||'',weight,ideal:num('#fIdeal',weight,0.5,40),size:root._seg.size,neutered:root._seg.neutered==='1',activity:root._seg.activity,wake:$('#fWake',root).value||'07:30'});
 }
 let onbMode='first';
 function openOnboarding(mode){
   onbMode=mode;const d=DEFAULT_DOG();if(mode==='first'&&S.mode==='demo')d.name='Goku';
-  mountDogForm($('#onbForm'),d);$('#onbCancel').hidden=mode==='first';
+  mountDogForm($('#onbForm'),d);$('#onbCancel').hidden=mode==='first';$('#onbJoin').hidden=S.mode!=='cloud';
   $('#onbTitle').textContent=mode==='first'?'¡Hola! Cuéntanos de tu salchicha':'Nuevo integrante de la manada';
   show('onboard');
 }
@@ -709,7 +720,8 @@ async function saveOnboarding(){
 function openEditDog(){
   const sh=openSheet(`<div class="sheet-head"><img data-asset="ladeando" alt=""><div><h2>Editar perfil</h2><p class="sub">Las recomendaciones se recalculan al guardar.</p></div></div><form class="form" id="edForm" autocomplete="off"></form>
     <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-orange" id="edSave">Guardar</button></div>
-    ${S.dogs.length>1?`<button class="btn btn-white btn-block btn-sm" id="edDel" style="margin-top:12px;color:var(--red)">${I.trash}Eliminar a ${esc(S.dog.name)}</button>`:''}`);
+    <button class="btn btn-white btn-block btn-sm" data-action="customize" style="margin-top:12px">${I.star}Cambiar avatar y fondo</button>
+    ${!isOwner(S.dog)?`<button class="btn btn-white btn-block btn-sm" data-action="fam-leave" style="margin-top:8px;color:var(--red)">Salir de la familia de ${esc(S.dog.name)}</button>`:S.dogs.length>1?`<button class="btn btn-white btn-block btn-sm" id="edDel" style="margin-top:8px;color:var(--red)">${I.trash}Eliminar a ${esc(S.dog.name)}</button>`:''}`);
   const f=$('#edForm',sh);mountDogForm(f,S.dog);$('[data-close]',sh).onclick=()=>closeSheet();
   $('#edSave',sh).onclick=async()=>{const d=readDogForm(f,S.dog);if(!d)return;const b=$('#edSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
     try{const saved=await DB.saveDog(d);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;closeSheet();renderAll();scheduleReminders(true);toast('Perfil actualizado');}catch(e){console.error(e);b.disabled=false;b.textContent='Guardar';toast('No se pudo guardar. Revisa tu conexión.');}};
@@ -718,7 +730,7 @@ function openEditDog(){
 function openDogSwitch(){
   const sh=openSheet(`<h2>Tus perros</h2><p class="sub" style="margin-bottom:14px">Elige de quién es el paseo.</p>
     ${S.dogs.map(d=>`<button class="opt" data-switch-dog="${d.id}"><span class="thumb" style="background:var(--yellow)"><img src="${avatarSrc(d)}" alt="" style="width:100%;height:100%;object-fit:cover"></span><span><b>${esc(d.name)}</b><small>${ageLabel(d)} · ${nf1.format(d.weight)} kg</small></span><span class="go-ic">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
-    <button class="opt" data-action="add-dog"><span class="thumb" style="background:var(--green-3);display:grid;place-items:center;color:var(--green-d)">${I.plus}</span><span><b>Agregar otro perro</b><small>Cada uno tiene sus paseos y metas</small></span></button>`);
+    <button class="opt" data-action="add-dog"><span class="thumb" style="background:var(--green-3);display:grid;place-items:center;color:var(--green-d)">${I.plus}</span><span><b>Agregar otro perro</b><small>Cada uno tiene sus paseos y metas</small></span></button>${S.mode==='cloud'?`<button class="opt" data-action="fam-join"><span class="thumb" style="background:#FDE6F0;display:grid;place-items:center;color:#C0306A">${I.heart}</span><span><b>Unirme a una familia</b><small>Usa el código que te compartieron</small></span></button>`:''}`);
   bindAssets(sh);
 }
 async function selectDog(id){
@@ -726,6 +738,8 @@ async function selectDog(id){
   if(S.mode==='cloud')LS.set(lsKey('lastDog'),S.dog.id);
   const [routes,walks,photos]=await Promise.all([DB.listRoutes(),DB.listWalks(S.dog.id),DB.listPhotos(S.dog.id)]);S.routes=routes;S.walks=walks;S.photos=photos;
   try{await ensureUrls(S.dogs.map(d=>d.avatarPath));}catch(e){}
+  try{await ensureAvatars(S.dogs);}catch(e){}
+  if(S.mode==='cloud')loadFamily(S.dog.id);
 }
 
 /* =========================================================
@@ -949,11 +963,14 @@ function openFinish(snap){
     const walk={id:uuid(),dogId:dog.id,routeId:snap.route?snap.route.id:(newRoute?newRoute.id:null),start:snap.started,duration:Math.round(snap.elapsed),distance:Math.round(snap.distance),points:pts.length>1?pts:null,preview:thin(pts,60),pee:$('#fPee',sh).getAttribute('aria-pressed')==='true',poop:$('#fPoop',sh).getAttribute('aria-pressed')==='true',mode:snap.mode};
     const b=$('#fSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
     if(newRoute)S.routes.push(newRoute);
+    const lvAntes=dog.id===S.dog.id?levelInfo().level:0;
     if(dog.id===S.dog.id)S.walks.unshift(walk);
+    if(typeof dog.xp==='number')dog.xp+=walkXp(walk);
     endLive();
     try{if(newRoute)await DB.addRoute(newRoute);await DB.addWalk(walk);toast(`¡Paseo guardado! ${fmtDur(walk.duration)} con ${dog.name}`);}
     catch(e){console.error(e);const q=queueGet();q.push({route:newRoute,walk:fromLocal(walk)});queueSet(q);toast('Sin conexión: el paseo quedó en el teléfono y se subirá después',4200);}
     renderAll();
+    if(dog.id===S.dog.id){const lv=levelInfo().level;if(lv>lvAntes)setTimeout(()=>celebrateLevel(lvAntes,lv),1200);}
   };
 }
 const fromLocal=w=>Object.assign({},w);
@@ -996,9 +1013,9 @@ const DAY_ORDER=[1,2,3,4,5,6,0],DAY_L=['D','L','M','M','J','V','S'];
 function daysLabel(days){if(!days||!days.length||days.length===7)return 'Todos los días';const s=[...days].sort((a,b)=>DAY_ORDER.indexOf(a)-DAY_ORDER.indexOf(b));if(s.join()==='1,2,3,4,5')return 'Lunes a viernes';if(s.join()==='6,0')return 'Fines de semana';return s.map(d=>DOW[d]).join(', ');}
 let rtDraft=null;
 function openRoutineEditor(reset){
-  if(!rtDraft||reset){const base=customRoutine()?S.dog.routine:recommendedItems();rtDraft={items:base.map(x=>Object.assign({id:uuid(),days:[]},x)),goal:S.dog.goalMin||''};}
+  if(!rtDraft||reset){const base=routineSrc();rtDraft={items:base.map(x=>Object.assign({id:uuid(),days:[]},x)),goal:S.dog.goalMin||''};}
   const rec=walkRec(),items=[...rtDraft.items].sort((a,b)=>hm2min(a.time)-hm2min(b.time));
-  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-yellow" style="width:56px;height:56px;border-radius:18px">${I.clock}</span><div><h2>Rutina de ${esc(S.dog.name)}</h2><p class="sub">Ajusta horarios de paseos, comidas y todo lo que necesite.</p></div></div>
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-yellow" style="width:56px;height:56px;border-radius:18px">${I.clock}</span><div><h2>Rutina de ${esc(S.dog.name)}</h2><p class="sub">Ajusta horarios de paseos, siestas, remedios y todo lo que necesite.</p></div></div>
     <div class="field"><label for="rtGoal">Meta diaria de paseo (minutos)</label><input class="input" id="rtGoal" type="number" inputmode="numeric" min="5" max="300" step="5" value="${esc(rtDraft.goal)}" placeholder="${rec.total} (recomendado)"></div>
     <p class="flabel" style="margin:16px 2px 8px">Actividades del día</p>
     <div class="rt-list">${items.length?items.map(it=>{const t=rtype(it.type);return `<button class="rt-item" data-rt="${it.id}"><span class="time">${esc(it.time)}</span><span class="node" style="background:${t.color}">${I[t.icon]}</span><span class="what">${esc(it.label||t.label)}<small>${esc(it.detail||'')}${it.detail?' · ':''}${daysLabel(it.days)}</small></span><span class="chev">${I.chev}</span></button>`;}).join(''):`<p class="muted" style="font-weight:700;padding:8px 2px">Sin actividades. Agrega la primera.</p>`}</div>
@@ -1179,15 +1196,13 @@ const remKey=()=>lsKey('reminders');
 const REM_BEFORE=[0,5,10,15];
 const remState=()=>Object.assign({on:false,ids:[],others:false,before:0,asked:false,sig:'',v:0},LS.get(remKey())||{});
 function remItems(st){
-  const src=customRoutine()?S.dog.routine:recommendedItems();
-  return src.filter(x=>x.type==='walk'||(st.others&&(x.type==='meal'||x.type==='meds')))
+  return routineSrc().filter(x=>x.type==='walk'||(st.others&&x.type==='meds'))
     .map(x=>({type:x.type,time:x.time,label:x.label||rtype(x.type).label,detail:x.detail||'',days:Array.isArray(x.days)?x.days.slice().sort():[]}))
     .sort((a,b)=>hm2min(a.time)-hm2min(b.time));
 }
 function walkTimes(){return remItems({others:false}).map(x=>x.time).filter((t,i,a)=>a.indexOf(t)===i);}
 function reminderText(x,before){const n=S.dog.name,lab=x.label,det=x.detail?` · ${x.detail}`:'';
   if(x.type==='walk')return before?[`En ${before} min: paseo de ${n}`,`${lab}${det}. ¡Ve preparando el arnés!`]:[`Hora del paseo de ${n}`,`${lab}${det}. ¡A ponerle el arnés!`];
-  if(x.type==='meal')return [before?`En ${before} min: ${lab}`:`Hora de comer: ${lab}`,`${n}${det}`];
   if(x.type==='meds')return [before?`En ${before} min: remedio de ${n}`:`Remedio de ${n}`,`${lab}${det}`];
   return [`${lab} · ${n}`,x.detail||rtype(x.type).label];}
 async function scheduleReminders(force){
@@ -1224,7 +1239,7 @@ async function setReminders(patch,quiet){
   if(quiet)return;
   if('on' in patch)toast(st.on?`Listo: te aviso ${st.before?st.before+' min antes de':'a la hora de'} cada paseo de ${S.dog.name}`:'Recordatorios desactivados',3800);
   else if('before' in patch)toast(st.before?`Te aviso ${st.before} min antes de cada paseo`:'Te aviso a la hora exacta de cada paseo');
-  else if('others' in patch)toast(st.others?'También te aviso las comidas y los remedios':'Solo te aviso los paseos');
+  else if('others' in patch)toast(st.others?'También te aviso los remedios':'Solo te aviso los paseos');
 }
 function maybeAskReminders(){
   if(!IS_APP||S.mode!=='cloud'||!S.dog||W.active)return;
@@ -1242,12 +1257,168 @@ function maybeAskReminders(){
 function confirmResetStats(){
   if(W.active){toast('Termina el paseo en curso antes de reiniciar.');return;}
   const d=S.dog,n=S.walks.length;
-  confirmSheet(`¿Reiniciar las estadísticas de ${esc(d.name)}?`,`Se borran para siempre sus <b>${n} ${n===1?'paseo':'paseos'}</b>: minutos, kilómetros, nivel, rachas y medallas vuelven a cero. Se mantienen su perfil, rutina, metas, fotos y rutas guardadas.`,'Reiniciar',async()=>{
+  confirmSheet(`¿Reiniciar las estadísticas de ${d.name}?`,`Se borran para siempre sus <b>${n} ${n===1?'paseo':'paseos'}</b>: minutos, kilómetros, rachas y medallas vuelven a cero. ${typeof d.xp==='number'?`Su nivel (NV ${levelInfo().level}) se mantiene, igual que`:'Se mantienen'} su perfil, rutina, metas, fotos y rutas guardadas.${S.fam&&S.fam.members&&S.fam.members.length>1?' Se reinicia para toda la familia.':''}`,'Reiniciar',async()=>{
     try{await DB.resetWalks(d.id);
       queueSet(queueGet().filter(it=>!(it.walk&&it.walk.dogId===d.id)));
       if(S.mode==='cloud')LS.del(lsKey('live'));
       S.walks=[];renderAll();toast(`Listo: estadísticas de ${d.name} en cero`);}
     catch(e){console.error(e);toast('No se pudo reiniciar. Revisa tu conexión.');}});
+}
+/* =========================================================
+   FONDOS DEL PERFIL (se desbloquean al subir de nivel)
+   ========================================================= */
+const FONDOS=[
+  {id:'cielo',name:'Cielo azul',lvl:1,fx:'bokeh'},
+  {id:'coral',name:'Coral brillante',lvl:2,img:'fondo-coral',fx:'sparkle'},
+  {id:'huellitas',name:'Huellitas',lvl:3,img:'fondo-huellitas',fx:'zoom'},
+  {id:'atardecer',name:'Atardecer',lvl:4,css:'linear-gradient(180deg,#F2553A 0%,#FF8A55 45%,#FFC46B 100%)',fx:'sun'},
+  {id:'nubes',name:'Nubes',lvl:5,img:'fondo-nubes',fx:'drift'},
+  {id:'huesitos',name:'Huesitos',lvl:6,img:'fondo-huesitos',fx:'zoom'},
+  {id:'menta',name:'Burbujas de menta',lvl:7,css:'linear-gradient(180deg,#0C9A70 0%,#22BF8F 55%,#7FE3BF 100%)',fx:'bubbles'},
+  {id:'noche',name:'Noche de luna',lvl:8,img:'fondo-noche',fx:'sparkle'},
+  {id:'aurora',name:'Aurora',lvl:10,css:'linear-gradient(120deg,#17195E,#3A2AA8,#0E9C9C,#6A2AA8,#17195E)',fx:'aurora'},
+  {id:'fiesta',name:'Fiesta',lvl:12,css:'linear-gradient(180deg,#F2456F 0%,#FF8A65 100%)',fx:'confetti'},
+  {id:'arcoiris',name:'Arcoíris',lvl:15,css:'linear-gradient(180deg,#FF5E5E,#FFB443,#FFE14D,#5FD38D,#4DA6FF,#9B6BFF)',fx:'hue'}
+];
+const FX_LABEL={bokeh:'Luces suaves',sparkle:'Destellos',zoom:'Movimiento lento',sun:'Sol que brilla',drift:'Nubes que avanzan',bubbles:'Burbujas',aurora:'Colores que fluyen',confetti:'Confeti',hue:'Colores que cambian'};
+const fondoById=id=>FONDOS.find(f=>f.id===id);
+const fondosHasta=lv=>FONDOS.filter(f=>f.lvl<=lv);
+function fondoActual(d){d=d||S.dog;const lv=levelInfo().level;const f=fondoById(d&&d.fondo);if(f&&f.lvl<=lv)return f;const un=fondosHasta(lv);return un[un.length-1]||FONDOS[0];}
+function fondoPreview(f){return f.img?`url('${ASSETS[f.img]}') center/cover no-repeat`:(f.css||'linear-gradient(180deg,#1544C2 0%,#1F5EFF 45%,#5B8CFF 100%)');}
+function fxHTML(fx){
+  const R=rng(11);let h='';
+  if(fx==='bokeh'){for(let i=0;i<6;i++){const s=60+R()*120;h+=`<span style="width:${s}px;height:${s}px;left:${R()*90}%;top:${R()*80}%"></span>`;}[[12,36],[86,30],[92,60],[7,66],[74,48]].forEach(([x,y],i)=>{h+=`<i style="left:${x}%;top:${y}%;animation-delay:${i*.6}s"></i>`;});}
+  else if(fx==='sparkle'){for(let i=0;i<9;i++)h+=`<i class="tw" style="left:${5+R()*90}%;top:${8+R()*70}%;animation-delay:${(R()*3).toFixed(2)}s;--s:${(0.6+R()*0.8).toFixed(2)}"></i>`;}
+  else if(fx==='sun'){h+='<b class="sun"></b>';for(let i=0;i<4;i++){const s=80+R()*90;h+=`<span style="width:${s}px;height:${s}px;left:${R()*85}%;top:${R()*70}%"></span>`;}}
+  else if(fx==='bubbles'){for(let i=0;i<12;i++){const s=10+R()*26;h+=`<em class="bub" style="width:${s}px;height:${s}px;left:${R()*95}%;animation-delay:${(R()*9).toFixed(2)}s;animation-duration:${(7+R()*6).toFixed(1)}s"></em>`;}}
+  else if(fx==='confetti'){const col=['#FFE14D','#FFFFFF','#5FD38D','#4DA6FF','#9B6BFF','#FF5E5E'];for(let i=0;i<22;i++)h+=`<em class="cf" style="left:${R()*98}%;background:${col[i%col.length]};animation-delay:${(R()*6).toFixed(2)}s;animation-duration:${(5+R()*4).toFixed(1)}s;--r:${Math.round(R()*360)}deg"></em>`;}
+  else if(fx==='aurora'||fx==='hue'){for(let i=0;i<5;i++)h+=`<i class="tw" style="left:${5+R()*90}%;top:${8+R()*60}%;animation-delay:${(R()*3).toFixed(2)}s;--s:${(0.5+R()*0.6).toFixed(2)}"></i>`;}
+  return h;
+}
+function applyFondo(){
+  const sky=$('#pgSky'),bg=$('#pgBg'),fx=$('#pgBokeh');if(!sky||!bg||!S.dog)return;
+  const f=fondoActual();
+  if(sky.dataset.fondo!==f.id){
+    sky.dataset.fondo=f.id;bg.className='pg-bg fx-'+f.fx;
+    bg.style.background=f.id==='cielo'?'':fondoPreview(f);
+    fx.className='bokeh fx-'+f.fx;fx.innerHTML=fxHTML(f.fx);
+  }
+}
+function celebrateLevel(antes,lv){
+  const nuevos=FONDOS.filter(f=>f.lvl>antes&&f.lvl<=lv),f=nuevos[nuevos.length-1];
+  const sh=openSheet(`<div class="lvl-up"><div class="lvl-burst"><span>NV</span><b>${lv}</b></div>
+    <h2>¡${esc(S.dog.name)} subió a nivel ${lv}!</h2>
+    <p class="sub">${f?`Desbloqueó un fondo nuevo para su perfil: <b>${esc(f.name)}</b>.`:'Sigue paseando para desbloquear más fondos.'}</p>
+    ${f?`<div class="lvl-prev" style="background:${fondoPreview(f)}"><img src="${avatarSrc(S.dog)}" alt=""></div>`:''}
+    <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" data-close>Genial</button>${f?'<button class="btn btn-orange" id="lvlSee">Ver fondos</button>':''}</div></div>`);
+  const b=$('#lvlSee',sh);if(b)b.onclick=()=>{closeSheet(true);openCustomize('fondos');};
+  try{navigator.vibrate&&navigator.vibrate([120,60,120,60,220]);}catch(e){}
+}
+
+/* =========================================================
+   PERSONALIZACIÓN (avatar + fondo del perfil)
+   ========================================================= */
+let cuDraft=null;
+function openCustomize(tab,rerender){
+  const prevScroll=rerender?(($('.sheet')||{}).scrollTop||0):0;
+  const d=S.dog,lv=levelInfo(),cur=parseAv(d.avatarPath);
+  if(!cuDraft)cuDraft={ilu:cur?cur.ilu:'feliz',fondo:cur?cur.fondo:'huellitas',useIlu:!!cur||!d.avatarPath,fondoPerfil:d.fondo||'auto',tab:tab||'avatar'};
+  if(tab)cuDraft.tab=tab;
+  const t=cuDraft.tab;
+  const avPrev=cuDraft.useIlu?`<span class="cu-av" style="background-image:url('${ASSETS['ilu-'+cuDraft.ilu]}'),url('${ASSETS['fondo-'+cuDraft.fondo]}')"></span>`:`<span class="cu-av photo"><img src="${avatarSrc(d)}" alt=""></span>`;
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-orange" style="width:56px;height:56px;border-radius:18px">${I.star}</span><div><h2>Personalizar a ${esc(d.name)}</h2><p class="sub">NV ${lv.level} · ${nf0.format(lv.xp)} XP · faltan ${nf0.format(lv.toNext)} para NV ${lv.level+1}</p></div></div>
+    <div class="seg cu-tabs"><button type="button" data-cutab="avatar" class="${t==='avatar'?'on':''}">Avatar</button><button type="button" data-cutab="fondos" class="${t==='fondos'?'on':''}">Fondo del perfil</button></div>
+    ${t==='avatar'?`
+      <div class="cu-preview">${avPrev}</div>
+      ${d.avatarPath&&!parseAv(d.avatarPath)?`<button class="btn btn-white btn-sm btn-block" data-cu-photo style="margin-bottom:10px">${cuDraft.useIlu?'Volver a la foto del álbum':'Usando una foto del álbum'}</button>`:''}
+      <p class="flabel">Ilustración</p>
+      <div class="cu-grid">${ILUS.map(x=>`<button type="button" class="cu-opt ${cuDraft.useIlu&&cuDraft.ilu===x.id?'on':''}" data-cu-ilu="${x.id}"><span class="cu-thumb" style="background-image:url('${ASSETS['ilu-'+x.id]}'),url('${ASSETS['fondo-'+cuDraft.fondo]}')"></span><small>${x.name}</small></button>`).join('')}</div>
+      <p class="flabel" style="margin-top:14px">Fondo del avatar</p>
+      <div class="cu-grid">${AV_FONDOS.map(x=>`<button type="button" class="cu-opt ${cuDraft.useIlu&&cuDraft.fondo===x.id?'on':''}" data-cu-fondo="${x.id}"><span class="cu-thumb" style="background-image:url('${ASSETS['fondo-'+x.id]}')"></span><small>${x.name}</small></button>`).join('')}</div>
+      <p class="hint" style="margin-top:10px">También puedes usar una foto: ábrela en el álbum y toca «Usar como foto de perfil».</p>`:`
+      <button type="button" class="cu-auto ${cuDraft.fondoPerfil==='auto'?'on':''}" data-cu-perfil="auto"><span class="cu-tile" style="background:${fondoPreview(fondoActual(Object.assign({},d,{fondo:null})))}"></span><span><b>Automático</b><small>Cambia solo cada vez que ${esc(d.name)} desbloquea uno nuevo</small></span>${cuDraft.fondoPerfil==='auto'?I.check:''}</button>
+      <div class="cu-fondos">${FONDOS.map(f=>{const ok=f.lvl<=lv.level;return `<button type="button" class="cu-fondo ${ok?'':'locked'} ${cuDraft.fondoPerfil===f.id?'on':''}" ${ok?`data-cu-perfil="${f.id}"`:`data-cu-locked="${f.lvl}"`}><span class="cu-tile fx-${f.fx}" style="background:${fondoPreview(f)}">${ok?'':`<em>${I.lock}NV ${f.lvl}</em>`}</span><b>${esc(f.name)}</b><small>${ok?FX_LABEL[f.fx]:'Se desbloquea en NV '+f.lvl}</small></button>`;}).join('')}</div>
+      <p class="hint" style="margin-top:10px">Ganas 1 XP por minuto de paseo y 10 XP por km. El nivel queda guardado para siempre, aunque reinicies las estadísticas.</p>`}
+    <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-orange" id="cuSave">Guardar</button></div>`,{cls:rerender?'no-anim':'',onClose:()=>{cuDraft=null;}});
+  if(rerender)sh.scrollTop=prevScroll;
+  $$('[data-cutab]',sh).forEach(b=>b.onclick=()=>{cuDraft.tab=b.dataset.cutab;openCustomize(null,false);});
+  $$('[data-cu-ilu]',sh).forEach(b=>b.onclick=()=>{cuDraft.ilu=b.dataset.cuIlu;cuDraft.useIlu=true;openCustomize(null,true);});
+  $$('[data-cu-fondo]',sh).forEach(b=>b.onclick=()=>{cuDraft.fondo=b.dataset.cuFondo;cuDraft.useIlu=true;openCustomize(null,true);});
+  $$('[data-cu-perfil]',sh).forEach(b=>b.onclick=()=>{cuDraft.fondoPerfil=b.dataset.cuPerfil;openCustomize(null,true);});
+  $$('[data-cu-locked]',sh).forEach(b=>b.onclick=()=>toast(`Se desbloquea cuando ${d.name} llegue a NV ${b.dataset.cuLocked}`));
+  const ph=$('[data-cu-photo]',sh);if(ph)ph.onclick=()=>{cuDraft.useIlu=!cuDraft.useIlu;openCustomize(null,true);};
+  $('#cuSave',sh).onclick=async()=>{
+    const b=$('#cuSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
+    const nd=Object.assign({},d,{fondo:cuDraft.fondoPerfil==='auto'?null:cuDraft.fondoPerfil});
+    if(cuDraft.useIlu)nd.avatarPath=`ilu:${cuDraft.ilu}:${cuDraft.fondo}`;
+    try{if(parseAv(nd.avatarPath))await composeAvatar(nd.avatarPath);
+      const saved=await DB.saveDog(nd);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;
+      cuDraft=null;closeSheet(true);$('#pgSky').dataset.fondo='';renderAll();toast('¡Listo! Así se ve '+S.dog.name);}
+    catch(e){console.error(e);b.disabled=false;b.textContent='Guardar';toast(/fondo/.test(e.message||'')?'Falta actualizar la base de datos (migración v8).':'No se pudo guardar. Revisa tu conexión.',4500);}
+  };
+}
+
+/* =========================================================
+   FAMILIAS (compartir un perro entre cuentas)
+   ========================================================= */
+const famErr=e=>{const m=(e&&e.message)||'';if(/function|schema cache|does not exist|dog_members/i.test(m))return 'Falta actualizar la base de datos (migración v8).';if(/fetch|network/i.test(m))return 'Revisa tu conexión.';return m||'No se pudo completar.';};
+const fmtCode=c=>String(c||'').toUpperCase().replace(/^(.{3})(.{3})$/,'$1-$2');
+async function loadFamily(dogId){
+  if(S.mode!=='cloud')return;
+  try{const m=await DB.familia(dogId);if(!S.dog||S.dog.id!==dogId)return;S.fam={dogId,members:m||[],ok:true};}
+  catch(e){S.fam={dogId,members:[],ok:false,err:famErr(e)};}
+  if(S.view==='ajustes')renderFamilyCard();
+  if(S.view==='stats'||S.view==='rutas')renderAll();
+}
+const famNames=()=>{const o={};((S.fam&&S.fam.dogId===(S.dog&&S.dog.id)&&S.fam.members)||[]).forEach(m=>{o[m.user_id]=(m.nombre||m.correo||'Alguien').split(' ')[0];});return o;};
+const isOwner=d=>S.mode!=='cloud'||!d||!d.ownerId||d.ownerId===S.user.id;
+function renderFamilyCard(){
+  const box=$('#famList');if(!box||!S.dog)return;const f=S.fam;
+  if(!f||f.dogId!==S.dog.id){box.innerHTML='<p class="muted" style="padding:6px 2px">Cargando…</p>';return;}
+  if(!f.ok){box.innerHTML=`<p class="muted" style="padding:6px 2px">${esc(f.err)}</p>`;return;}
+  const me=S.user.id,owner=isOwner(S.dog);
+  box.innerHTML=f.members.map(m=>{const yo=m.user_id===me,nm=m.nombre||m.correo||'Integrante';return `<div class="li static fam-li"><span class="ph">${esc(nm.charAt(0).toUpperCase())}</span><span>${esc(nm)}${yo?' (tú)':''}<small>${m.role==='owner'?'Creó el perfil':'Familia'}${m.correo&&m.correo!==nm?' · '+esc(m.correo):''}</small></span>${(!yo&&owner&&m.role!=='owner')?`<button class="icon-btn" data-fam-remove="${m.user_id}" aria-label="Quitar de la familia">${I.trash}</button>`:''}</div>`;}).join('')||'<p class="muted">Solo tú por ahora.</p>';
+  const lv=$('#famLeave');if(lv)lv.hidden=owner;
+}
+async function famInvite(){
+  if(S.mode!=='cloud'){toast('Inicia sesión para invitar a tu familia');return;}
+  let code;try{code=await DB.invitar(S.dog.id);}catch(e){toast(famErr(e),4500);return;}
+  const url=location.origin+location.pathname;
+  const txt=`¡Te invito a la familia de ${S.dog.name} en SalchiPaseo! Abre ${url} (o la app), entra con tu cuenta y en Ajustes → Familia toca «Tengo un código». Código: ${fmtCode(code)}`;
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-pink" style="width:56px;height:56px;border-radius:18px">${I.heart}</span><div><h2>Invita a alguien</h2><p class="sub">Con este código podrá ver y pasear a ${esc(S.dog.name)} desde su teléfono.</p></div></div>
+    <div class="fam-code">${fmtCode(code)}</div><p class="hint" style="text-align:center">Vence en 7 días y sirve para una persona.</p>
+    <div class="row-actions" style="margin-top:14px"><button class="btn btn-white" id="famCopy">Copiar</button><button class="btn btn-orange" id="famShare">Compartir</button></div>`);
+  $('#famCopy',sh).onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast('Invitación copiada');}catch(e){toast('Código: '+fmtCode(code));}};
+  $('#famShare',sh).onclick=async()=>{if(navigator.share){try{await navigator.share({title:'SalchiPaseo',text:txt});}catch(e){}}else{try{await navigator.clipboard.writeText(txt);toast('Invitación copiada');}catch(e){}}};
+  loadFamily(S.dog.id);
+}
+function famJoin(){
+  if(S.mode!=='cloud'){toast('Inicia sesión con tu cuenta para unirte a una familia');return;}
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-pink" style="width:56px;height:56px;border-radius:18px">${I.heart}</span><div><h2>Unirme a una familia</h2><p class="sub">Escribe el código que te compartieron. El perro aparecerá en tu cuenta y podrás registrar sus paseos.</p></div></div>
+    <input class="input otp-input" id="famCodeIn" maxlength="7" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABC-123" aria-label="Código de familia">
+    <button class="btn btn-orange btn-block" id="famJoinGo" style="margin-top:14px">Unirme</button>`);
+  const inp=$('#famCodeIn',sh);setTimeout(()=>inp.focus(),150);
+  inp.oninput=()=>{const v=inp.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);const f=v.length>3?v.slice(0,3)+'-'+v.slice(3):v;if(f!==inp.value)inp.value=f;};
+  const doJoin=async()=>{const code=inp.value.replace(/[^A-Z0-9]/gi,'').toUpperCase();if(code.length!==6){toast('El código tiene 6 letras o números');inp.focus();return;}
+    const b=$('#famJoinGo',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
+    try{const id=await DB.unirme(code);S.dogs=await DB.listDogs();await selectDog(id);closeSheet(true);show('main');go('perfil');renderAll();toast(`¡Ahora eres parte de la familia de ${S.dog.name}!`,3800);scheduleReminders(true);}
+    catch(e){b.disabled=false;b.textContent='Unirme';toast(famErr(e),4500);}};
+  $('#famJoinGo',sh).onclick=doJoin;inp.onkeydown=e=>{if(e.key==='Enter')doJoin();};
+}
+function famLeave(userId){
+  const d=S.dog,me=S.user.id,self=!userId||userId===me;
+  const nm=self?'':(famNames()[userId]||'esta persona');
+  confirmSheet(self?`¿Salir de la familia de ${d.name}?`:`¿Quitar a ${nm}?`,self?`${esc(d.name)} dejará de aparecer en tu cuenta. Los paseos que registraste quedan en su perfil.`:`${esc(nm)} dejará de ver a ${esc(d.name)}. Sus paseos quedan guardados.`,self?'Salir':'Quitar',async()=>{
+    try{await DB.salirFamilia(d.id,self?me:userId);
+      if(self){S.dogs=await DB.listDogs();if(!S.dogs.length){openOnboarding('first');return;}await selectDog(S.dogs[0].id);renderAll();toast('Saliste de la familia');}
+      else{await loadFamily(d.id);toast('Listo');}}
+    catch(e){toast(famErr(e),4500);}});
+}
+let lastRefresh=0;
+async function refreshShared(){
+  if(S.mode!=='cloud'||!S.dog||W.active||Date.now()-lastRefresh<45000)return;lastRefresh=Date.now();
+  try{const [dogs,walks]=await Promise.all([DB.listDogs(),DB.listWalks(S.dog.id)]);const id=S.dog.id;S.dogs=dogs;S.dog=dogs.find(x=>x.id===id)||S.dog;S.walks=walks;
+    await ensureAvatars(S.dogs);renderAll();loadFamily(S.dog.id);}catch(e){}
 }
 /* ---------- Actividad en vivo: el paseo en la pantalla bloqueada y en la isla dinámica ---------- */
 const LIVE=IS_APP&&NAT&&NAT.actividad?NAT.actividad:null;
@@ -1393,6 +1564,10 @@ document.addEventListener('click',async e=>{
   if(a==='rem-toggle'){setReminders({on:!remState().on});return;}
   if(a==='rem-others'){setReminders({others:!remState().others});return;}
   if(a==='reset-stats'){confirmResetStats();return;}
+  if(a==='customize'){closeSheet(true);openCustomize('avatar');return;}
+  if(a==='fam-invite'){famInvite();return;}
+  if(a==='fam-join'){closeSheet(true);famJoin();return;}
+  if(a==='fam-leave'){famLeave();return;}
   if(a==='test-notif'){testNotif();return;}
   if(a==='otp'){openEmailSheet();return;}
   if(a==='set-password'){openPasswordSheet();return;}
@@ -1403,6 +1578,7 @@ document.addEventListener('click',async e=>{
   if(a==='to-login'){resetToLogin();return;}
   if(a==='logout'){logout();return;}
   if(a==='wipe'){confirmSheet('¿Borrar todos tus datos?','Se eliminan para siempre tus perros, rutas y paseos. Esta acción no se puede deshacer.','Borrar todo',async()=>{await DB.wipe();S.dogs=[];S.walks=[];S.routes=[];openOnboarding('first');toast('Datos borrados');});return;}
+  if(t.dataset.famRemove){famLeave(t.dataset.famRemove);return;}
   if(t.dataset.remBefore!=null){setReminders({before:+t.dataset.remBefore});return;}
   if(t.dataset.switchDog){closeSheet(true);if(t.dataset.switchDog!==S.dog.id){try{await selectDog(t.dataset.switchDog);renderAll();scheduleReminders(true);toast(`Ahora con ${S.dog.name}`);}catch(err){toast('No se pudo cargar. Revisa tu conexión.');}}return;}
   if(t.dataset.route){openRouteSheet(t.dataset.route);return;}
@@ -1412,7 +1588,7 @@ document.addEventListener('click',async e=>{
 });
 $('#dogSwitch').onclick=openDogSwitch;
 $('#photoInput').onchange=e=>uploadPhotos(e.target.files);
-$('#pgLvl').onclick=()=>{const lv=levelInfo();toast(`Nivel ${lv.level}: ganas 1 XP por minuto y 10 XP por km. Faltan ${nf0.format(lv.toNext)} XP.`,4000);};
+$('#pgLvl').onclick=()=>openCustomize('fondos');
 $('#pauseBtn').onclick=togglePause;
 $('#stopBtn').onclick=stopWalk;
 $('#recenter').onclick=()=>{W.follow=true;const p=W.points[W.points.length-1]||(livePin&&livePin.getLatLng());if(p&&liveMap)liveMap.panTo(p);};
@@ -1430,7 +1606,7 @@ document.addEventListener('visibilitychange',()=>{
   if(W.active){requestWakeLock();
     if(W.mode==='gps'){if(!IS_APP)startTracking();if(liveMap){liveMap.invalidateSize();redrawTrack();}if(!IS_APP&&W.hiddenAt&&Date.now()-W.hiddenAt>15000)toast('El tiempo siguió corriendo. Con la pantalla apagada el GPS se pausa: usa el modo bolsillo.',5000);}
     W.hiddenAt=0;W.elapsed=walkElapsed();updateLive();}
-  else if(S.dog&&$('#scr-main').classList.contains('on'))renderProfile();
+  else if(S.dog&&$('#scr-main').classList.contains('on')){renderProfile();refreshShared();}
 });
 let rsz;window.addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(S.view==='stats'&&S.dog)renderStats();},150);});
 
