@@ -3,13 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Salchipaseo · Paseos felices para tu perro</title>
+<title>Guau Guau · Paseos felices para tu perro</title>
 <meta name="description" content="Registra los paseos de tu perro: rutas, tiempos, estadísticas y consejos de salud.">
 <meta name="theme-color" content="#FFC629">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Salchipaseo">
+<meta name="apple-mobile-web-app-title" content="Guau Guau">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&family=Roboto:wght@500;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="leaflet.css">
-<link rel="stylesheet" href="styles.css?v=9">
+<link rel="stylesheet" href="styles.css?v=10">
 </head>
 <body>
 <div class="desk-bg" id="deskBg" aria-hidden="true"></div>
@@ -32,11 +32,11 @@
   <!-- ============ LOGIN ============ -->
   <section class="screen login" id="scr-login">
     <div class="login-top">
-      <span class="logo"><span class="logo-mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="#fff"><ellipse cx="6" cy="9.5" rx="2.1" ry="2.6"/><ellipse cx="10" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="14.6" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="18.4" cy="9.6" rx="2.1" ry="2.6"/><path d="M12.3 11c2.6 0 5.6 3.6 5.6 6.2 0 1.8-1.3 2.6-2.8 2.6-1.2 0-1.8-.6-2.8-.6s-1.7.6-2.9.6c-1.5 0-2.8-.8-2.8-2.6 0-2.6 3-6.2 5.7-6.2z"/></svg></span><span>Salchi<b>paseo</b></span></span>
-      <h1>Paseos <span>felices</span> para tu salchicha</h1>
+      <span class="logo"><img class="logo-img" data-asset="logo" alt="" aria-hidden="true"><span>Guau <b>Guau</b></span></span>
+      <h1>Paseos <span>felices</span> para tu perro</h1>
       <p>Registra sus rutas y tiempos, mira cuánto camina cada semana y recibe consejos para su salud.</p>
     </div>
-    <div class="walk-scene" data-scene><img class="ws-dog" data-asset="caminando" alt="Goku caminando por la vereda"></div>
+    <div class="walk-scene trio" data-scene><img class="ws-dog d1" data-asset="caminando" data-raza="golden" alt=""><img class="ws-dog d2" data-asset="caminando" data-raza="pug" alt=""><img class="ws-dog d3" data-asset="caminando" data-raza="salchicha" alt="Una salchicha, un pug y un golden caminando por la vereda"></div>
     <div class="login-actions">
       <div class="config-warn" id="configWarn" hidden>Falta conectar Supabase: completa <b>config.js</b> para activar el login con Google. Mientras tanto puedes probar la app sin cuenta.</div>
       <button class="btn-google" id="googleBtn"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continuar con Google</button>
@@ -49,13 +49,17 @@
   <!-- ============ ONBOARDING ============ -->
   <section class="screen onboard" id="scr-onboard">
     <div class="onb-head" id="onbHead">
-      <h1 id="onbTitle">¡Hola! Cuéntanos de tu salchicha</h1>
-      <p>Con estos datos calculamos sus paseos, metas y rutina.</p>
-      <img data-asset="ladeando" alt="Salchicha ladeando la cabeza">
+      <h1 id="onbTitle">¿Quién es tu perro?</h1>
+      <p id="onbSub">Elige su raza: la app se adapta a él.</p>
+      <img id="onbDog" data-asset="ladeando" alt="">
     </div>
     <div class="onb-body">
-      <form class="form" id="onbForm" autocomplete="off" data-dogform></form>
-      <button class="btn btn-orange btn-lg btn-block" id="onbSave" style="margin-top:18px">Crear perfil</button>
+      <div class="raza-pick" id="onbPick"></div>
+      <div id="onbStep2" hidden>
+        <button type="button" class="raza-chip" id="onbBack"></button>
+        <form class="form" id="onbForm" autocomplete="off" data-dogform></form>
+        <button class="btn btn-orange btn-lg btn-block" id="onbSave" style="margin-top:18px">Crear perfil</button>
+      </div>
       <button class="btn btn-ghost btn-block" id="onbCancel" style="margin-top:12px" hidden>Cancelar</button>
       <button class="btn btn-white btn-block" id="onbJoin" data-action="fam-join" style="margin-top:12px" hidden>¿Te invitaron? Tengo un código de familia</button>
     </div>
@@ -77,7 +81,7 @@
         </div>
         <div class="pg-lvl" id="pgLvl" role="button" tabindex="0"><span>NV</span><b id="pgLvlNum">1</b></div>
         <svg class="pg-arc" id="pgArc" viewBox="0 0 400 200" aria-hidden="true"></svg>
-        <img class="pg-dog" id="pgDog" data-asset="ladeando" alt="Tu salchicha">
+        <img class="pg-dog" id="pgDog" data-asset="ladeando" alt="Tu perro">
       </div>
       <div class="pg-card" id="pgCard"></div>
     </div>
@@ -165,11 +169,11 @@
 <div class="tooltip" id="tooltip"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="app-nativa.js?v=9"></script>
+<script src="app-nativa.js?v=10"></script>
 <script src="leaflet.js"></script>
 <script src="supabase.js"></script>
 <script src="config.js"></script>
-<script>window.SALCHI_ASSETS={"caminando": "goku-caminando-sprite.webp", "ladeando": "goku-ladeando-sprite.webp", "durmiendo": "goku-durmiendo-sprite.webp", "cara": "goku-cara.webp", "ilu-feliz": "ilu-feliz.webp", "ilu-curioso": "ilu-curioso.webp", "ilu-guino": "ilu-guino.webp", "ilu-perfil": "ilu-perfil.webp", "ilu-dormilon": "ilu-dormilon.webp", "fondo-coral": "fondo-coral.webp", "fondo-huesitos": "fondo-huesitos.webp", "fondo-huellitas": "fondo-huellitas.webp", "fondo-nubes": "fondo-nubes.webp", "fondo-noche": "fondo-noche.webp"};</script>
-<script src="app.js?v=9"></script>
+<script>window.SALCHI_ASSETS={"caminando": "goku-caminando-sprite.webp", "ladeando": "goku-ladeando-sprite.webp", "durmiendo": "goku-durmiendo-sprite.webp", "cara": "goku-cara.webp", "logo": "logo-guau.webp", "ilu-feliz": "ilu-feliz.webp", "ilu-curioso": "ilu-curioso.webp", "ilu-guino": "ilu-guino.webp", "ilu-perfil": "ilu-perfil.webp", "ilu-dormilon": "ilu-dormilon.webp", "fondo-coral": "fondo-coral.webp", "fondo-huesitos": "fondo-huesitos.webp", "fondo-huellitas": "fondo-huellitas.webp", "fondo-nubes": "fondo-nubes.webp", "fondo-noche": "fondo-noche.webp", "pug:caminando": "pug-caminando-sprite.webp", "pug:ladeando": "pug-ladeando-sprite.webp", "pug:durmiendo": "pug-durmiendo-sprite.webp", "pug:cara": "pug-cara.webp", "pug:ilu-feliz": "ilu-pug-feliz.webp", "pug:ilu-curioso": "ilu-pug-curioso.webp", "pug:ilu-guino": "ilu-pug-guino.webp", "pug:ilu-perfil": "ilu-pug-perfil.webp", "pug:ilu-dormilon": "ilu-pug-dormilon.webp", "golden:caminando": "golden-caminando-sprite.webp", "golden:ladeando": "golden-ladeando-sprite.webp", "golden:durmiendo": "golden-durmiendo-sprite.webp", "golden:cara": "golden-cara.webp", "golden:ilu-feliz": "ilu-golden-feliz.webp", "golden:ilu-curioso": "ilu-golden-curioso.webp", "golden:ilu-guino": "ilu-golden-guino.webp", "golden:ilu-perfil": "ilu-golden-perfil.webp", "golden:ilu-dormilon": "ilu-golden-dormilon.webp"};</script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

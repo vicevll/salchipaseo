@@ -1,5 +1,5 @@
 /* =========================================================
-   Salchipaseo · estilos (mobile first)
+   Guau Guau · estilos (mobile first)
    ========================================================= */
 :root{
   --yellow:#FFC629; --yellow-2:#FFE08A; --yellow-3:#FFF3CC;
@@ -747,3 +747,46 @@ button.pg-hptxt svg{width:15px;height:15px;color:#B9C3C6}
 .walk-flags{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
 .walk-flags span{display:inline-flex;align-items:center;gap:6px;background:var(--cream);border-radius:999px;padding:7px 12px;font-weight:800;font-size:14px}
 .walk-flags svg{width:18px;height:18px}
+
+/* =========================================================
+   v10 · Guau Guau: razas (salchicha, pug, golden y "otra")
+   ========================================================= */
+.logo-img{width:50px;height:50px;border-radius:15px;transform:rotate(-6deg);box-shadow:0 3px 0 rgba(30,26,29,.12)}
+/* Login: los tres perros paseando juntos */
+.walk-scene.trio .ws-dog{transform:none;bottom:16px}
+.walk-scene.trio .ws-dog.d1{width:31%;max-width:150px;left:3%}
+.walk-scene.trio .ws-dog.d2{width:24%;max-width:112px;left:36%;bottom:14px}
+.walk-scene.trio .ws-dog.d3{width:33%;max-width:158px;left:62%}
+/* Tamaños por raza donde el perro aparece solo */
+.ws-dog[data-look=pug]{width:160px}
+.ws-dog[data-look=golden]{width:190px}
+.pg-dog[data-look=pug]{max-width:178px}
+.pg-dog[data-look=golden]{max-width:200px}
+.pg-dog.sleep[data-look=pug],.pg-dog.sleep[data-look=golden]{width:56%;max-width:215px;bottom:8px}
+.onb-head [data-look=pug],.onb-head [data-look=golden]{width:42%;bottom:-26px}
+.sheet-head [data-look=pug],.sheet-head [data-look=golden]{width:78px}
+.sleep-card [data-look=pug],.sleep-card [data-look=golden]{width:86%;justify-self:center;transform:translate(4px,10px)}
+.empty [data-look=pug],.empty [data-look=golden]{width:46%;max-width:180px}
+
+/* Onboarding: elegir la raza */
+.raza-pick{margin-bottom:6px}
+.raza-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.raza-card{position:relative;display:flex;flex-direction:column;align-items:center;gap:2px;border:0;border-radius:24px;padding:12px 10px 14px;background:#fff;box-shadow:0 4px 0 var(--line);font:inherit;color:inherit;text-align:center;overflow:hidden;transition:transform .15s}
+.raza-card:active{transform:translateY(2px) scale(.98)}
+.raza-card .rc-dog{display:block;height:124px;width:auto;margin:0 auto 6px;max-width:100%}
+.raza-card b{font-family:var(--f-display);font-weight:600;font-size:21px;line-height:1.1}
+.raza-card small{font-size:12.5px;font-weight:700;color:var(--ink-3);line-height:1.2}
+.rc-salchicha{background:var(--yellow-3)}
+.rc-pug{background:var(--orange-3)}
+.rc-golden{background:var(--green-3)}
+.rc-otra{background:#fff;box-shadow:inset 0 0 0 2.5px var(--line)}
+.rc-q{display:grid;place-items:center;width:92px;height:92px;margin:16px auto 22px;border-radius:50%;background:var(--blue-3);color:var(--blue);font-family:var(--f-display);font-weight:600;font-size:52px}
+.raza-card.on{box-shadow:0 0 0 3px var(--ink)}
+.raza-otra{margin-top:14px;background:#fff;border-radius:22px;padding:16px;box-shadow:0 3px 0 var(--line);display:flex;flex-direction:column;gap:10px}
+.raza-otra .hint{margin:0}
+.raza-chip{display:inline-flex;align-items:center;gap:8px;border:0;background:#fff;border-radius:999px;padding:8px 14px 8px 10px;font:inherit;font-weight:800;color:var(--ink);box-shadow:0 2px 0 var(--line);margin-bottom:14px}
+.raza-chip svg{width:20px;height:20px;color:var(--orange)}
+.raza-chip small{font-size:13px;color:var(--orange);font-weight:800;margin-left:2px}
+.seg-raza button{font-size:13.5px;padding:9px 2px}
+.onb-head.pick{min-height:0;padding-bottom:42px}
+.onb-head.pick h1,.onb-head.pick p{max-width:none}

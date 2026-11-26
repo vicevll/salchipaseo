@@ -1,7 +1,7 @@
 {
-  "name": "Salchipaseo",
-  "short_name": "Salchipaseo",
-  "description": "Registra los paseos de tu perro: rutas, tiempos, estadísticas y consejos de salud.",
+  "name": "Guau Guau",
+  "short_name": "Guau Guau",
+  "description": "Paseos felices para tu perro: rutas, tiempos, logros y consejos de salud para salchichas, pugs, goldens y más.",
   "lang": "es",
   "start_url": "./",
   "scope": "./",

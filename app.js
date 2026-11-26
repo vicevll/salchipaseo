@@ -1,5 +1,5 @@
 /* =========================================================
-   Salchipaseo · app
+   Guau Guau (antes Salchipaseo) · app
    - Modo nube: login con Google vía Supabase, datos en Postgres.
    - Modo demo: sin cuenta, datos de ejemplo en memoria.
    ========================================================= */
@@ -9,6 +9,19 @@
 const $=(s,r=document)=>r.querySelector(s);
 const $$=(s,r=document)=>[...r.querySelectorAll(s)];
 const ASSETS=window.SALCHI_ASSETS||{};
+/* ---------- Razas: cada una cambia animaciones, ilustraciones y consejos ---------- */
+const RAZAS={
+  salchicha:{id:'salchicha',name:'Salchicha',kg:9,desc:'Patas cortas, corazón gigante'},
+  pug:{id:'pug',name:'Pug',kg:8,desc:'Carita chata, puro cariño'},
+  golden:{id:'golden',name:'Golden',kg:30,desc:'Energía y cola feliz'}
+};
+const LOOKS=['salchicha','pug','golden'];
+/* "otra" = raza que aún no está en la app: usa el look genérico (golden) */
+const lookDe=d=>d&&RAZAS[d.breed]?d.breed:(d&&d.breed==='otra'?'golden':'salchicha');
+const razaNombre=d=>d&&d.breed==='otra'?(d.breedName||'Otra raza'):RAZAS[lookDe(d)].name;
+let lookActual='salchicha';
+const curLook=()=>S.dog?lookDe(S.dog):lookActual;
+const assetOf=(k,look)=>{look=look||curLook();return (look!=='salchicha'&&ASSETS[look+':'+k])||ASSETS[k]||'';};
 const CFG=window.SALCHIPASEO_CONFIG||{};
 const CONFIG_OK=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_KEY&&!/TU-PROYECTO/.test(CFG.SUPABASE_URL)&&!/PEGA_AQUI/.test(CFG.SUPABASE_KEY)&&window.supabase);
 const DEFAULT_CENTER=[-33.4395,-70.6400];
@@ -60,6 +73,8 @@ const I={
   back:sv('<path d="M15 5l-7 7 7 7"/>'),
   pill:sv('<rect x="3.5" y="8.5" width="17" height="7" rx="3.5" transform="rotate(-35 12 12)"/><path d="m9.5 8.4 5 7.2"/>'),
   ball:sv('<circle cx="12" cy="12" r="8.5"/><path d="M4 10c4 1 12 1 16 4M5.5 17c3-3 9-4 13-3"/>'),
+  wind:sv('<path d="M3 9h11a3 3 0 1 0-3-3"/><path d="M3 13h15a3 3 0 1 1-3 3"/><path d="M3 17h6"/>'),
+  eye:sv('<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>'),
   bath:sv('<path d="M4 12h16v2a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5z"/><path d="M6 12V6a2 2 0 0 1 3.6-1.2"/><path d="M8 19l-1 2M16 19l1 2"/>'),
   star:sv('<path d="m12 3.5 2.6 5.4 5.9.8-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.8z"/>'),
   heartF:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20.5s-8-4.9-8-10.9A4.6 4.6 0 0 1 12 6.8a4.6 4.6 0 0 1 8 2.8c0 6-8 10.9-8 10.9z"/></svg>',
@@ -104,19 +119,20 @@ const r6=p=>[Math.round(p[0]*1e6)/1e6,Math.round(p[1]*1e6)/1e6];
 /* ---------- safe local storage (solo modo nube: sesión, cola offline, respaldo del paseo) ---------- */
 const LS={get(k){try{return JSON.parse(localStorage.getItem(k));}catch(e){return null;}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v));}catch(e){}},del(k){try{localStorage.removeItem(k);}catch(e){}}};
 const lsKey=k=>`salchipaseo.${k}.${(S.user&&S.user.id)||'x'}`;
+{const lk=LS.get('guau.look');if(LOOKS.includes(lk))lookActual=lk;}
 
 /* =========================================================
    Estado
    ========================================================= */
 const S={mode:null,user:null,dogs:[],dog:null,walks:[],routes:[],photos:[],view:'perfil',histN:15,galFilter:'all'};
-const DEFAULT_DOG=()=>({id:null,name:'',birthDate:'',weight:9,ideal:9,size:'std',neutered:true,activity:'auto',kcal:3600,wake:'07:30',routine:null,goalMin:null,avatarPath:null,walkMin:null});
+const DEFAULT_DOG=()=>({id:null,name:'',breed:'salchicha',breedName:'',birthDate:'',weight:9,ideal:9,size:'std',neutered:true,activity:'auto',kcal:3600,wake:'07:30',routine:null,goalMin:null,avatarPath:null,walkMin:null});
 
 /* =========================================================
    Capa de datos
    ========================================================= */
 let sb=null;
-const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5),routine:Array.isArray(r.routine)?r.routine:null,goalMin:r.goal_minutes||null,avatarPath:r.avatar_path||null,walkMin:r.walk_min_minutes||null,_c4:Object.prototype.hasOwnProperty.call(r,'walk_min_minutes'),xp:typeof r.xp==='number'?r.xp:null,fondo:r.fondo||null,ownerId:r.user_id||null,_c8:Object.prototype.hasOwnProperty.call(r,'xp'),paseos:typeof r.paseos==='number'?r.paseos:null,logros:Array.isArray(r.logros)?r.logros:null,_c9:Object.prototype.hasOwnProperty.call(r,'paseos')});
-const fromDog=d=>Object.assign({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake,routine:d.routine&&d.routine.length?d.routine:null,goal_minutes:d.goalMin||null,avatar_path:d.avatarPath||null},(d._c4||d.walkMin)?{walk_min_minutes:d.walkMin||null}:{},(d._c8||d.fondo)?{fondo:d.fondo||null}:{},(d._c9&&d.logros)?{logros:d.logros}:{});
+const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5),routine:Array.isArray(r.routine)?r.routine:null,goalMin:r.goal_minutes||null,avatarPath:r.avatar_path||null,walkMin:r.walk_min_minutes||null,_c4:Object.prototype.hasOwnProperty.call(r,'walk_min_minutes'),xp:typeof r.xp==='number'?r.xp:null,fondo:r.fondo||null,ownerId:r.user_id||null,_c8:Object.prototype.hasOwnProperty.call(r,'xp'),paseos:typeof r.paseos==='number'?r.paseos:null,logros:Array.isArray(r.logros)?r.logros:null,_c9:Object.prototype.hasOwnProperty.call(r,'paseos'),breed:r.breed||'salchicha',breedName:r.breed_name||'',_c10:Object.prototype.hasOwnProperty.call(r,'breed')});
+const fromDog=d=>Object.assign({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake,routine:d.routine&&d.routine.length?d.routine:null,goal_minutes:d.goalMin||null,avatar_path:d.avatarPath||null},(d._c4||d.walkMin)?{walk_min_minutes:d.walkMin||null}:{},(d._c8||d.fondo)?{fondo:d.fondo||null}:{},(d._c9&&d.logros)?{logros:d.logros}:{},(d._c10||(d.breed&&d.breed!=='salchicha'))?{breed:d.breed||'salchicha',breed_name:d.breed==='otra'?(d.breedName||null):null}:{});
 const toWalk=r=>({id:r.id,by:r.user_id||null,dogId:r.dog_id,routeId:r.route_id,start:Date.parse(r.started_at),duration:r.duration_s,distance:r.distance_m,preview:r.preview||[],pee:r.pee,poop:r.poop,mode:r.mode});
 const fromWalk=w=>({id:w.id,dog_id:w.dogId,route_id:w.routeId||null,started_at:new Date(w.start).toISOString(),duration_s:Math.round(w.duration),distance_m:Math.round(w.distance),points:w.points||null,preview:w.preview||null,pee:!!w.pee,poop:!!w.poop,mode:w.mode||'gps'});
 const toRoute=r=>({id:r.id,name:r.name,color:r.color||'orange',points:r.points||[],distance:r.distance_m||0,created:Date.parse(r.created_at)});
@@ -132,6 +148,10 @@ const DB={
     if(S.mode==='demo'){if(!d.id){d.id=uuid();MEM.dogs.push(d);}else{const i=MEM.dogs.findIndex(x=>x.id===d.id);MEM.dogs[i]=d;}return d;}
     if(d.id)return toDog(chk(await sb.from('dogs').update(fromDog(d)).eq('id',d.id).select().single()));
     return toDog(chk(await sb.from('dogs').insert(fromDog(d)).select().single()));
+  },
+  async pedirRaza(nombre){
+    if(S.mode!=='cloud'||!nombre)return;
+    try{const {error}=await sb.from('breed_requests').insert({breed:String(nombre).slice(0,60)});if(error)console.warn('pedido de raza',error.message);}catch(e){console.warn('pedido de raza',e);}
   },
   async deleteDog(id){if(S.mode==='demo'){MEM.dogs=MEM.dogs.filter(d=>d.id!==id);MEM.walks=MEM.walks.filter(w=>w.dogId!==id);MEM.photos=MEM.photos.filter(p=>p.dogId!==id);return;}
     try{const ph=chk(await sb.from('photos').select('path,thumb_path').eq('dog_id',id));const paths=ph.flatMap(p=>[p.path,p.thumb_path]).filter(Boolean);if(paths.length)await sb.storage.from(BUCKET).remove(paths);}catch(e){console.warn(e);}
@@ -216,16 +236,20 @@ function makeDemo(){
    ========================================================= */
 function ageMonths(d=S.dog){if(!d||!d.birthDate)return 48;const b=new Date(d.birthDate+'T12:00:00'),n=new Date();let m=(n.getFullYear()-b.getFullYear())*12+(n.getMonth()-b.getMonth());if(n.getDate()<b.getDate())m--;return Math.max(0,m);}
 function ageLabel(d=S.dog){const m=ageMonths(d);if(m<12)return m+(m===1?' mes':' meses');const y=Math.floor(m/12);return y+(y===1?' año':' años');}
-function stage(){const m=ageMonths();if(m<12)return 'puppy';if(m>=108)return 'senior';return 'adult';}
+function stage(){const m=ageMonths();if(m<12)return 'puppy';if(m>=(lookDe(S.dog)==='salchicha'?108:96))return 'senior';return 'adult';}
 const STAGE_LABEL={puppy:'cachorro',adult:'adulto',senior:'senior'};
 const overweight=()=>S.dog.weight>S.dog.ideal*1.1;
 const underweight=()=>S.dog.weight<S.dog.ideal*0.9;
 function walkRec(){
-  const p=S.dog,m=ageMonths(),st=stage(),mini=p.size==='mini';
-  if(st==='puppy'){const each=Math.max(5,Math.min(5*Math.max(1,m),mini?20:30));return {total:each*2,count:2,each,why:`Regla para cachorros: unos 5 minutos por mes de edad, dos veces al día (${m} ${m===1?'mes':'meses'}). Nada de saltos ni escaleras mientras crece.`};}
-  let total,count,why;
-  if(st==='senior'){total=mini?30:40;count=3;why='Salchicha senior: mejor varios paseos cortos y tranquilos que uno largo.';}
-  else{total=mini?40:60;count=2;why=mini?'Una salchicha miniatura adulta necesita cerca de 40 minutos diarios, en dos salidas.':'Una salchicha estándar adulta necesita alrededor de una hora diaria, en dos salidas.';}
+  const p=S.dog,m=ageMonths(),st=stage(),raza=p.breed==='otra'?'otra':lookDe(p),mini=raza==='salchicha'&&p.size==='mini';
+  const R={
+    salchicha:{pup:mini?20:30,adult:[mini?40:60,2,mini?'Una salchicha miniatura adulta necesita cerca de 40 minutos diarios, en dos salidas.':'Una salchicha estándar adulta necesita alrededor de una hora diaria, en dos salidas.'],senior:[mini?30:40,3,'Salchicha senior: mejor varios paseos cortos y tranquilos que uno largo.'],pupWhy:'Nada de saltos ni escaleras mientras crece.'},
+    pug:{pup:20,adult:[45,3,'Un pug adulto necesita unos 45 minutos diarios, mejor en tres salidas cortas y a paso tranquilo: con su nariz chata le cuesta respirar si se agita.'],senior:[30,3,'Pug senior: paseos cortos, frescos y sin apuro.'],pupWhy:'Paseos suaves y siempre a la sombra.'},
+    golden:{pup:45,adult:[90,2,'Un golden adulto necesita cerca de hora y media diaria, en dos salidas, idealmente con juego o agua.'],senior:[50,3,'Golden senior: sigue amando pasear, pero en salidas más cortas y suaves con sus caderas.'],pupWhy:'Hasta el año y medio nada de correr largo ni saltar: sus articulaciones siguen creciendo.'},
+    otra:{pup:30,adult:[60,2,'Un perro adulto necesita alrededor de una hora diaria, repartida en dos salidas.'],senior:[40,3,'Perro senior: mejor varios paseos cortos y tranquilos que uno largo.'],pupWhy:'Nada de saltos bruscos mientras crece.'}
+  }[raza];
+  if(st==='puppy'){const each=Math.max(5,Math.min(5*Math.max(1,m),R.pup));return {total:each*2,count:2,each,why:`Regla para cachorros: unos 5 minutos por mes de edad, dos veces al día (${m} ${m===1?'mes':'meses'}). ${R.pupWhy}`};}
+  let [total,count,why]=st==='senior'?R.senior:R.adult;
   if(overweight()){total+=10;why+=' Sumamos 10 minutos para ayudar a bajar de peso.';}
   return {total,count,each:Math.round(total/count),why};
 }
@@ -387,17 +411,22 @@ function go(v){
   if(v==='stats')renderStats();if(v==='ajustes')renderSettings();if(v==='fotos')renderGallery();
   window.scrollTo(0,0);
 }
-/* Animaciones de Goku como hojas de sprites (Safari no reproduce bien el WebP animado) */
-const SPRITE_META={caminando:{n:24,cols:6,rows:4,w:360,h:252,dur:40},ladeando:{n:24,cols:6,rows:4,w:380,h:370,dur:100},durmiendo:{n:25,cols:5,rows:5,w:420,h:248,dur:120}};
+/* Animaciones de los perros como hojas de sprites (Safari no reproduce bien el WebP animado) */
+const SPRITE_META={
+  salchicha:{caminando:{n:24,cols:6,rows:4,w:360,h:252,dur:40},ladeando:{n:24,cols:6,rows:4,w:380,h:370,dur:100},durmiendo:{n:25,cols:5,rows:5,w:420,h:248,dur:120}},
+  pug:{caminando:{n:24,cols:6,rows:4,w:300,h:288,dur:40},ladeando:{n:30,cols:6,rows:5,w:300,h:364,dur:40},durmiendo:{n:20,cols:5,rows:4,w:360,h:318,dur:160}},
+  golden:{caminando:{n:24,cols:6,rows:4,w:340,h:274,dur:40},ladeando:{n:30,cols:6,rows:5,w:300,h:305,dur:40},durmiendo:{n:20,cols:5,rows:4,w:360,h:312,dur:160}}
+};
+const spriteMeta=(k,look)=>(SPRITE_META[look]||SPRITE_META.salchicha)[k];
 const sprites=new Set();
-function makeSprite(el,k){const m=SPRITE_META[k];el.style.backgroundImage=`url("${ASSETS[k]}")`;el.style.backgroundSize=`${m.cols*100}% ${m.rows*100}%`;el.style.backgroundPosition='0% 0%';el.style.aspectRatio=`${m.w} / ${m.h}`;el._sp={k,m,f:-1,t0:performance.now()-Math.random()*800};sprites.add(el);}
+function makeSprite(el,k,look){look=look||'salchicha';const m=spriteMeta(k,look);el.style.backgroundImage=`url("${assetOf(k,look)}")`;el.dataset.look=look;el.style.backgroundSize=`${m.cols*100}% ${m.rows*100}%`;el.style.backgroundPosition='0% 0%';el.style.aspectRatio=`${m.w} / ${m.h}`;el._sp={k,look,m,f:-1,t0:performance.now()-Math.random()*800};sprites.add(el);}
 function bindAssets(root=document){
   $$('[data-asset]',root).forEach(el=>{
-    const k=el.dataset.asset;
-    if(SPRITE_META[k]&&ASSETS[k]){
+    const k=el.dataset.asset,rz=el.dataset.raza||(el.closest&&el.closest('[data-raza]')||{dataset:{}}).dataset.raza,look=LOOKS.includes(rz)?rz:curLook();
+    if(spriteMeta(k,look)&&assetOf(k,look)){
       if(el.tagName==='IMG'){const sp=document.createElement('span');sp.className=el.className+' sprite';if(el.id)sp.id=el.id;sp.dataset.asset=k;sp.setAttribute('role','img');if(el.alt)sp.setAttribute('aria-label',el.alt);else sp.setAttribute('aria-hidden','true');el.replaceWith(sp);el=sp;}
-      if(!el._sp||el._sp.k!==k)makeSprite(el,k);
-    }else if(el.tagName==='IMG'&&ASSETS[k]&&el.getAttribute('src')!==ASSETS[k])el.src=ASSETS[k];
+      if(!el._sp||el._sp.k!==k||el._sp.look!==look)makeSprite(el,k,look);
+    }else if(el.tagName==='IMG'){const src=assetOf(k,look);if(src&&el.getAttribute('src')!==src)el.src=src;}
   });
 }
 function spriteLoop(now){
@@ -419,18 +448,18 @@ const AV_FONDOS=[{id:'coral',name:'Coral'},{id:'huesitos',name:'Huesitos'},{id:'
 const parseAv=p=>{const m=/^ilu:([a-z]+):([a-z]+)$/.exec(p||'');return m&&ILUS.some(x=>x.id===m[1])&&AV_FONDOS.some(x=>x.id===m[2])?{ilu:m[1],fondo:m[2]}:null;};
 const avCache=new Map();
 const loadImg=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});
-async function composeAvatar(key){
-  if(avCache.has(key))return avCache.get(key);const a=parseAv(key);if(!a)return null;
-  const [bg,il]=await Promise.all([loadImg(ASSETS['fondo-'+a.fondo]),loadImg(ASSETS['ilu-'+a.ilu])]);
+async function composeAvatar(key,look){
+  look=look||curLook();const ck=look+'|'+key;if(avCache.has(ck))return avCache.get(ck);const a=parseAv(key);if(!a)return null;
+  const [bg,il]=await Promise.all([loadImg(ASSETS['fondo-'+a.fondo]),loadImg(assetOf('ilu-'+a.ilu,look))]);
   const c=document.createElement('canvas');c.width=c.height=256;const x=c.getContext('2d');
   x.drawImage(bg,0,0,256,256);x.drawImage(il,0,0,256,256);
-  let url;try{url=c.toDataURL('image/webp',0.9);}catch(e){url=ASSETS['ilu-'+a.ilu];}
-  avCache.set(key,url);return url;
+  let url;try{url=c.toDataURL('image/webp',0.9);}catch(e){url=assetOf('ilu-'+a.ilu,look);}
+  avCache.set(ck,url);return url;
 }
-async function ensureAvatars(dogs){for(const d of (dogs||[])){if(parseAv(d.avatarPath)){try{await composeAvatar(d.avatarPath);}catch(e){console.warn('avatar',e);}}}}
-const avatarSrc=d=>{if(!d)return ASSETS.cara||'';const a=parseAv(d.avatarPath);if(a)return avCache.get(d.avatarPath)||ASSETS['ilu-'+a.ilu]||ASSETS.cara||'';return urlFor(d.avatarPath)||ASSETS.cara||'';};
+async function ensureAvatars(dogs){for(const d of (dogs||[])){if(parseAv(d.avatarPath)){try{await composeAvatar(d.avatarPath,lookDe(d));}catch(e){console.warn('avatar',e);}}}}
+const avatarSrc=d=>{const look=d?lookDe(d):curLook();if(!d)return assetOf('cara',look);const a=parseAv(d.avatarPath);if(a)return avCache.get(look+'|'+d.avatarPath)||assetOf('ilu-'+a.ilu,look)||assetOf('cara',look);return urlFor(d.avatarPath)||assetOf('cara',look);};
 function renderBinds(){$$('[data-bind="dogname"]').forEach(e=>e.textContent=S.dog?S.dog.name:'');const a=$('#dogSwitch img');if(a&&S.dog)a.src=avatarSrc(S.dog);}
-function renderAll(){if(!S.dog)return;renderBinds();renderProfile();renderRoutes();if(S.view==='stats')renderStats();renderHealth();if(S.view==='ajustes')renderSettings();if(S.view==='fotos')renderGallery();$('#demoBar').hidden=S.mode!=='demo';$('#scr-main').classList.toggle('demo',S.mode==='demo');updateSyncBar();}
+function renderAll(){if(!S.dog)return;document.body.dataset.perro=curLook();if(LS.get('guau.look')!==curLook())LS.set('guau.look',curLook());bindAssets(document);renderBinds();renderProfile();renderRoutes();if(S.view==='stats')renderStats();renderHealth();if(S.view==='ajustes')renderSettings();if(S.view==='fotos')renderGallery();$('#demoBar').hidden=S.mode!=='demo';$('#scr-main').classList.toggle('demo',S.mode==='demo');updateSyncBar();}
 
 /* ---------- toast & tooltip ---------- */
 let toastT;
@@ -490,7 +519,7 @@ function renderProfile(){
     <button class="pg-hptxt" data-action="edit-goals" aria-label="Editar metas">${tm} / ${goal} MIN HOY ${I.pencil}</button>
     <div class="pg-3">
       <div><b>${nf1.format(d.weight)}kg</b><span>Peso</span></div>
-      <div class="mid pg-type"><i>${I.paw}</i><span>Salchicha</span></div>
+      <div class="mid pg-type"><i>${I.paw}</i><span>${esc(razaNombre(d))}</span></div>
       <div><b>${ageLabel(d)}</b><span>Edad</span></div>
     </div>
     <hr class="pg-hr">
@@ -615,6 +644,28 @@ function renderStats(){
 /* =========================================================
    SALUD
    ========================================================= */
+const CUIDADOS={
+  salchicha:{titulo:'Cuidados de salchicha',cama:'Cama cómoda y sin escaleras.',tips:[
+    ['spine','pink','Cuida su espalda','Nada de saltos desde el sillón ni escaleras. Al tomarlo, sujeta pecho y trasero a la vez.'],
+    ['harness','blue','Arnés, no collar','El arnés reparte la fuerza en el pecho y protege su cuello y columna.'],
+    ['paw','orange','Revisa sus patas','Al volver del paseo mira sus almohadillas: piedritas, cortes o espigas se detectan rápido.'],
+    ['thermo','green','Test de los 7 segundos','Si no aguantas la mano 7 segundos en la vereda, está muy caliente para sus patas.']]},
+  pug:{titulo:'Cuidados de pug',cama:'Cama fresca: los pug roncan y se acaloran fácil.',tips:[
+    ['wind','pink','Ojo con su respiración','Con su nariz chata se agita rápido. Si jadea fuerte o ronca mucho al caminar, paren a la sombra.'],
+    ['harness','blue','Arnés siempre','Nunca collar para pasear: el arnés no presiona su cuello ni su vía respiratoria.'],
+    ['bath','orange','Limpia sus arrugas','Seca los pliegues de la cara un par de veces por semana para evitar irritaciones.'],
+    ['eye','green','Cuida sus ojos','Sus ojos saltones se lastiman fácil: evita pastos altos y revisa que no lagrimeen.']]},
+  golden:{titulo:'Cuidados de golden',cama:'Cama amplia y firme para cuidar sus caderas.',tips:[
+    ['ball','pink','Juego y olfato','Un golden feliz necesita correr, traer la pelota y olfatear. Mezcla paseo con juego.'],
+    ['spine','blue','Caderas y codos','Mantén su peso a raya y evita saltos fuertes: es una raza con tendencia a displasia.'],
+    ['drop','orange','Agua y orejas','Lleva agua en los paseos y seca bien sus orejas si se baña o nada.'],
+    ['paw','green','Cepillado','Cepíllalo 2 o 3 veces por semana para evitar nudos y que bote menos pelo.']]},
+  otra:{titulo:'Cuidados de tu perro',cama:'Cama cómoda en un rincón tranquilo.',tips:[
+    ['harness','pink','Arnés cómodo','Un buen arnés reparte la fuerza y cuida su cuello en los tirones.'],
+    ['paw','blue','Revisa sus patas','Al volver del paseo mira sus almohadillas: piedritas, cortes o espigas se detectan rápido.'],
+    ['drop','orange','Agua en el paseo','En días de calor lleva agua y busca la sombra.'],
+    ['thermo','green','Test de los 7 segundos','Si no aguantas la mano 7 segundos en la vereda, está muy caliente para sus patas.']]}
+};
 function renderHealth(){
   const p=S.dog,wr=walkRec(),st=stage(),sc=schedule(),tm=Math.round(todayMin()),avg=avgDaily(14),goal=dayGoal(),avgOk=avg.min>=goal*0.9;
   const month=new Date().getMonth(),hot=[10,11,0,1,2].includes(month),cold=[5,6,7].includes(month);
@@ -622,8 +673,9 @@ function renderHealth(){
   if(overweight())alerts.push(['warn',I.scale,`${esc(p.name)} está ${nf1.format(p.weight-p.ideal)} kg sobre su peso ideal. Sumamos 10 min de paseo a su recomendación diaria.`]);
   else if(underweight())alerts.push(['warn',I.scale,`${esc(p.name)} está bajo su peso ideal. Conviene consultarlo con el veterinario.`]);
   else alerts.push(['good',I.check,`Peso en rango: ${nf1.format(p.weight)} kg (ideal ${nf1.format(p.ideal)} kg).`]);
-  if(hot)alerts.push(['warn',I.thermo,'Temporada de calor: evita pasear entre 12:00 y 17:00. La vereda quema y las salchichas van muy cerca del suelo.']);
-  if(cold)alerts.push(['info',I.coat,'Hace frío: con patas cortas y panza cerca del suelo, un abriguito ayuda en los paseos.']);
+  const lk=p.breed==='otra'?'otra':lookDe(p);
+  if(hot)alerts.push(['warn',I.thermo,{salchicha:'Temporada de calor: evita pasear entre 12:00 y 17:00. La vereda quema y las salchichas van muy cerca del suelo.',pug:'Temporada de calor: los pug se ahogan fácil con calor. Pasea temprano o de noche, lleva agua y para si jadea fuerte.',golden:'Temporada de calor: evita pasear entre 12:00 y 17:00 y lleva agua. Con tanto pelo, se acalora rápido.',otra:'Temporada de calor: evita pasear entre 12:00 y 17:00 y lleva agua. La vereda puede quemar sus patas.'}[lk]]);
+  if(cold&&lk!=='golden')alerts.push(['info',I.coat,{salchicha:'Hace frío: con patas cortas y panza cerca del suelo, un abriguito ayuda en los paseos.',pug:'Hace frío: con su pelo corto, un abriguito ayuda en los paseos de la mañana y la noche.',otra:'Hace frío: si tiene pelo corto, un abriguito ayuda en los paseos.'}[lk]]);
   if(st==='puppy')alerts.push(['info',I.info,'Cachorro en crecimiento: paseos cortos, nada de saltos y muchas siestas.']);
   if(st==='senior')alerts.push(['info',I.info,'Etapa senior: controles cada 6 meses y atención a rigidez o dolor de espalda.']);
   let tl='',placed=false;
@@ -649,12 +701,9 @@ function renderHealth(){
     <div class="card"><div class="ctitle"><span class="ic ic-yellow">${I.clock}</span><h3>Rutina de hoy</h3><button class="btn btn-white btn-sm right" data-action="edit-routine">${I.pencil}Editar</button></div><div class="timeline">${tl}</div><p class="hint" style="margin-top:8px">${customRoutine()?'Rutina personalizada. Puedes volver a la recomendada cuando quieras.':'Rutina recomendada: paseo primero y comida 45 min después, así evitas ejercicio con la guata llena.'}</p></div>
 `;
   $('#careBody').innerHTML=`
-    <div class="card sleep-card"><div><div class="ctitle" style="margin-bottom:6px"><span class="ic" style="background:rgba(255,255,255,.2);color:#fff">${I.moon}</span><h3>Descanso</h3></div><div class="big-num" style="color:#fff">12–14<small style="color:rgba(255,255,255,.8)">h</small></div><p class="muted" style="margin-top:6px;font-weight:700">${tm>=goal?'Hoy se ganó una siesta de campeón.':'Cama cómoda y sin escaleras.'}</p></div><img data-asset="durmiendo" alt="Salchicha durmiendo"></div>
-    <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.heart}</span><h3>Cuidados de salchicha</h3></div><div class="tips">
-      <div class="tip"><span class="ic ic-pink">${I.spine}</span><div><b>Cuida su espalda</b><p>Nada de saltos desde el sillón ni escaleras. Al tomarlo, sujeta pecho y trasero a la vez.</p></div></div>
-      <div class="tip"><span class="ic ic-blue">${I.harness}</span><div><b>Arnés, no collar</b><p>El arnés reparte la fuerza en el pecho y protege su cuello y columna.</p></div></div>
-      <div class="tip"><span class="ic ic-orange">${I.paw}</span><div><b>Revisa sus patas</b><p>Al volver del paseo mira sus almohadillas: piedritas, cortes o espigas se detectan rápido.</p></div></div>
-      <div class="tip"><span class="ic ic-green">${I.thermo}</span><div><b>Test de los 7 segundos</b><p>Si no aguantas la mano 7 segundos en la vereda, está muy caliente para sus patas.</p></div></div></div></div>
+    <div class="card sleep-card"><div><div class="ctitle" style="margin-bottom:6px"><span class="ic" style="background:rgba(255,255,255,.2);color:#fff">${I.moon}</span><h3>Descanso</h3></div><div class="big-num" style="color:#fff">12–14<small style="color:rgba(255,255,255,.8)">h</small></div><p class="muted" style="margin-top:6px;font-weight:700">${tm>=goal?'Hoy se ganó una siesta de campeón.':CUIDADOS[lk].cama}</p></div><img data-asset="durmiendo" alt="${esc(p.name)} durmiendo"></div>
+    <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.heart}</span><h3>${CUIDADOS[lk].titulo}</h3></div><div class="tips">
+      ${CUIDADOS[lk].tips.map(([ic,col,t,x])=>`<div class="tip"><span class="ic ic-${col}">${I[ic]}</span><div><b>${t}</b><p>${x}</p></div></div>`).join('')}</div></div>
     <p class="disclaimer">Recomendaciones orientativas basadas en fórmulas veterinarias generales. Ante dudas de peso o salud, consulta con tu veterinario.</p>`;
   bindAssets($('#healthBody'));bindAssets($('#careBody'));
 }
@@ -693,7 +742,7 @@ function renderSettings(){
     <div class="card"><div class="list">
       ${S.mode==='cloud'?`<button class="li danger" data-action="wipe"><span class="ic" style="background:#FDE3E1;color:var(--red)">${I.trash}</span><span>Borrar todos mis datos<small>Perros, rutas y paseos</small></span></button>`:''}
       <button class="li" data-action="logout"><span class="ic ic-yellow">${I.out}</span><span>${S.mode==='demo'?'Salir del modo demo':'Cerrar sesión'}</span></button></div></div>
-    <p class="disclaimer">Salchipaseo · v2.0</p>`;
+    <p class="disclaimer">Guau Guau · v10</p>`;
   bindAssets($('#settingsBody'));
   const imp=$('#importFile');if(imp)imp.onchange=importFile;
   if(S.mode==='cloud'){renderFamilyCard();if(!S.fam||S.fam.dogId!==S.dog.id)loadFamily(S.dog.id);}
@@ -702,39 +751,79 @@ function renderSettings(){
 /* =========================================================
    Formulario del perro (onboarding + editar)
    ========================================================= */
-function dogFormHTML(d){
-  return `<div class="field full"><label for="fName">Nombre</label><input class="input" id="fName" maxlength="40" value="${esc(d.name)}" placeholder="Ej: Goku"></div>
+function razaSegHTML(){return `<div class="field full"><span class="flabel">Raza</span><div class="seg seg-raza" data-seg="breed">${LOOKS.map(r=>`<button type="button" data-v="${r}">${RAZAS[r].name}</button>`).join('')}<button type="button" data-v="otra">Otra</button></div></div>
+    <div class="field full" data-only="otra"><label for="fBreedName">¿Qué raza es?</label><input class="input" id="fBreedName" maxlength="40" placeholder="Ej: Beagle, Poodle, Mestizo…"></div>`;}
+function dogFormHTML(d,opts){
+  return `${opts&&opts.raza?razaSegHTML():''}<div class="field full"><label for="fName">Nombre</label><input class="input" id="fName" maxlength="40" value="${esc(d.name)}" placeholder="${d.breed==='pug'?'Ej: Mochi':d.breed==='golden'?'Ej: Simba':'Ej: Goku'}"></div>
     <div class="field full"><label for="fBirth">Fecha de nacimiento (aprox.)</label><input class="input" id="fBirth" type="date" value="${esc(d.birthDate)}" max="${new Date().toISOString().slice(0,10)}"></div>
-    <div class="field"><label for="fWeight">Peso actual (kg)</label><input class="input" id="fWeight" type="number" inputmode="decimal" min="0.5" max="40" step="0.1" value="${d.weight}"></div>
-    <div class="field"><label for="fIdeal">Peso ideal (kg)</label><input class="input" id="fIdeal" type="number" inputmode="decimal" min="0.5" max="40" step="0.1" value="${d.ideal}"></div>
-    <div class="field full"><span class="flabel">Tamaño</span><div class="seg" data-seg="size"><button type="button" data-v="mini">Miniatura</button><button type="button" data-v="std">Estándar</button></div></div>
+    <div class="field"><label for="fWeight">Peso actual (kg)</label><input class="input" id="fWeight" type="number" inputmode="decimal" min="0.5" max="90" step="0.1" value="${d.weight}"></div>
+    <div class="field"><label for="fIdeal">Peso ideal (kg)</label><input class="input" id="fIdeal" type="number" inputmode="decimal" min="0.5" max="90" step="0.1" value="${d.ideal}"></div>
+    <div class="field full" data-only="salchicha"><span class="flabel">Tamaño</span><div class="seg" data-seg="size"><button type="button" data-v="mini">Miniatura</button><button type="button" data-v="std">Estándar</button></div></div>
     <div class="field full"><span class="flabel">Esterilizado</span><div class="seg" data-seg="neutered"><button type="button" data-v="1">Sí</button><button type="button" data-v="0">No</button></div></div>
     <div class="field full"><span class="flabel">Nivel de actividad</span><div class="seg" data-seg="activity"><button type="button" data-v="auto">Auto</button><button type="button" data-v="low">Baja</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="high">Alta</button></div></div>
     <div class="field"><label for="fWake">Se despierta</label><input class="input" id="fWake" type="time" value="${esc(d.wake)}"></div>
     <p class="hint full" style="grid-column:1/-1">«Auto» calcula la actividad según sus paseos reales.</p>`;
 }
-function mountDogForm(root,d){
-  root.innerHTML=dogFormHTML(d);root._seg={size:d.size,neutered:d.neutered?'1':'0',activity:d.activity};
-  $$('[data-seg]',root).forEach(seg=>{const k=seg.dataset.seg;const set=v=>{root._seg[k]=v;$$('button',seg).forEach(b=>b.classList.toggle('on',b.dataset.v===v));};set(root._seg[k]);seg.onclick=e=>{const b=e.target.closest('button');if(b)set(b.dataset.v);};});
+function mountDogForm(root,d,opts){
+  root.innerHTML=dogFormHTML(d,opts);root._seg={breed:d.breed||'salchicha',size:d.size,neutered:d.neutered?'1':'0',activity:d.activity};
+  const bn=$('#fBreedName',root);if(bn)bn.value=d.breedName||'';
+  const only=()=>$$('[data-only]',root).forEach(f=>f.hidden=f.dataset.only!==root._seg.breed);
+  $$('[data-seg]',root).forEach(seg=>{const k=seg.dataset.seg;const set=v=>{root._seg[k]=v;$$('button',seg).forEach(b=>b.classList.toggle('on',b.dataset.v===v));if(k==='breed')only();};set(root._seg[k]);seg.onclick=e=>{const b=e.target.closest('button');if(b)set(b.dataset.v);};});
+  only();
 }
 function readDogForm(root,base){
   const num=(id,def,min,max)=>{const v=parseFloat($(id,root).value);return isNaN(v)?def:Math.max(min,Math.min(max,v));};
   const name=$('#fName',root).value.trim();if(!name){toast('Ponle un nombre a tu perro');$('#fName',root).focus();return null;}
-  const weight=num('#fWeight',9,0.5,40);
-  return Object.assign({},base,{name,birthDate:$('#fBirth',root).value||'',weight,ideal:num('#fIdeal',weight,0.5,40),size:root._seg.size,neutered:root._seg.neutered==='1',activity:root._seg.activity,wake:$('#fWake',root).value||'07:30'});
+  const weight=num('#fWeight',9,0.5,90),breed=root._seg.breed||base.breed||'salchicha';
+  const bn=$('#fBreedName',root),bt=bn?bn.value.trim().replace(/\s+/g,' '):'',breedName=breed==='otra'?((bt?bt.charAt(0).toUpperCase()+bt.slice(1):'')||base.breedName||''):'';
+  if(breed==='otra'&&!breedName&&bn){toast('Escribe qué raza es');bn.focus();return null;}
+  return Object.assign({},base,{name,breed,breedName,birthDate:$('#fBirth',root).value||'',weight,ideal:num('#fIdeal',weight,0.5,90),size:breed==='salchicha'?root._seg.size:'std',neutered:root._seg.neutered==='1',activity:root._seg.activity,wake:$('#fWake',root).value||'07:30'});
 }
-let onbMode='first';
+let onbMode='first',onbRaza=null;
 function openOnboarding(mode){
-  onbMode=mode;const d=DEFAULT_DOG();if(mode==='first'&&S.mode==='demo')d.name='Goku';
-  mountDogForm($('#onbForm'),d);$('#onbCancel').hidden=mode==='first';$('#onbJoin').hidden=S.mode!=='cloud';
-  $('#onbTitle').textContent=mode==='first'?'¡Hola! Cuéntanos de tu salchicha':'Nuevo integrante de la manada';
-  show('onboard');
+  onbMode=mode;onbRaza=null;
+  $('#onbCancel').hidden=mode==='first';$('#onbJoin').hidden=S.mode!=='cloud';
+  renderRazaPick();show('onboard');
+}
+function renderRazaPick(){
+  lookActual=S.dog?lookDe(S.dog):lookActual;
+  $('#onbTitle').textContent=onbMode==='first'?'¿Quién es tu perro?':'¿Quién se suma a la manada?';
+  $('#onbSub').textContent='Elige su raza: animaciones, ilustraciones y consejos se adaptan a él.';
+  $('#onbHead').classList.add('pick');$('#onbDog').hidden=true;$('#onbStep2').hidden=true;$('#onbJoin').hidden=S.mode!=='cloud';
+  const pk=$('#onbPick');pk.hidden=false;
+  pk.innerHTML=`<div class="raza-grid">${LOOKS.map(r=>`<button type="button" class="raza-card rc-${r}" data-pick-raza="${r}"><span class="rc-dog" data-asset="ladeando" data-raza="${r}"></span><b>${RAZAS[r].name}</b><small>${RAZAS[r].desc}</small></button>`).join('')}
+      <button type="button" class="raza-card rc-otra" data-pick-raza="otra"><span class="rc-q">?</span><b>No está mi perro</b><small>Cuéntanos su raza</small></button></div>
+    <div class="raza-otra" id="onbOtra" hidden><label class="flabel" for="onbOtraIn">¿Qué raza es tu perro?</label>
+      <input class="input" id="onbOtraIn" maxlength="40" placeholder="Ej: Beagle, Poodle, Mestizo…" autocomplete="off">
+      <p class="hint">Guardamos tu pedido para sumar su raza en una próxima versión. Mientras tanto usamos un perrito genérico.</p>
+      <button type="button" class="btn btn-orange btn-block" id="onbOtraGo">Enviar y seguir</button></div>`;
+  bindAssets(pk);
+  $$('[data-pick-raza]',pk).forEach(b=>b.onclick=()=>{const r=b.dataset.pickRaza;
+    if(r==='otra'){const o=$('#onbOtra');o.hidden=false;$$('.raza-card',pk).forEach(x=>x.classList.toggle('on',x===b));setTimeout(()=>{o.scrollIntoView({behavior:'smooth',block:'center'});$('#onbOtraIn').focus();},60);return;}
+    onbRaza={breed:r,breedName:''};showOnbForm();});
+  $('#onbOtraGo').onclick=async()=>{let n=$('#onbOtraIn').value.trim().replace(/\s+/g,' ');n=n.charAt(0).toUpperCase()+n.slice(1);if(n.length<2){toast('Escribe la raza de tu perro');$('#onbOtraIn').focus();return;}
+    const b=$('#onbOtraGo');b.disabled=true;await DB.pedirRaza(n);b.disabled=false;
+    toast(`¡Gracias! Anotamos «${n}» para una próxima versión.`,3800);onbRaza={breed:'otra',breedName:n};showOnbForm();};
+}
+function showOnbForm(){
+  const r=onbRaza,look=lookDe(r);lookActual=look;
+  const d=Object.assign(DEFAULT_DOG(),{breed:r.breed,breedName:r.breedName});
+  d.weight=d.ideal=r.breed==='otra'?15:RAZAS[look].kg;if(onbMode==='first'&&S.mode==='demo')d.name='Goku';
+  mountDogForm($('#onbForm'),d);
+  const nom=r.breed==='otra'?'perro':RAZAS[look].name.toLowerCase();
+  $('#onbTitle').textContent=onbMode==='first'?`¡Hola! Cuéntanos de tu ${nom}`:'Nuevo integrante de la manada';
+  $('#onbSub').textContent='Con estos datos calculamos sus paseos, metas y rutina.';
+  $('#onbHead').classList.remove('pick');const img=$('#onbDog');img.hidden=false;img.dataset.raza=look;bindAssets($('#onbHead'));
+  $('#onbBack').innerHTML=`${I.paw}<span>${esc(razaNombre(r))}</span><small>Cambiar raza</small>`;$('#onbBack').onclick=renderRazaPick;
+  $('#onbPick').hidden=true;$('#onbStep2').hidden=false;$('#onbJoin').hidden=true;
+  window.scrollTo(0,0);setTimeout(()=>$('#fName').focus(),250);
 }
 async function saveOnboarding(){
-  const d=readDogForm($('#onbForm'),DEFAULT_DOG());if(!d)return;
+  if(!onbRaza){renderRazaPick();return;}
+  const d=readDogForm($('#onbForm'),Object.assign(DEFAULT_DOG(),onbRaza));if(!d)return;
   const b=$('#onbSave');b.disabled=true;b.innerHTML='<span class="spin"></span>';
   try{const saved=await DB.saveDog(d);S.dogs.push(saved);await selectDog(saved.id);show('main');go('perfil');renderAll();toast(`¡Bienvenido, ${saved.name}!`);scheduleReminders(true);setTimeout(maybeAskReminders,2500);}
-  catch(e){console.error(e);toast('No se pudo guardar. Revisa tu conexión.');}
+  catch(e){console.error(e);toast(/breed/.test(e.message||'')?'Falta actualizar la base de datos (migración v10).':'No se pudo guardar. Revisa tu conexión.',4500);}
   b.disabled=false;b.textContent='Crear perfil';
 }
 function openEditDog(){
@@ -743,9 +832,10 @@ function openEditDog(){
     <button class="btn btn-white btn-block btn-sm" data-action="customize" style="margin-top:12px">${I.star}Cambiar avatar y fondo</button>
     <button class="btn btn-white btn-block btn-sm" data-action="reset-stats" style="margin-top:8px">${I.sync}Reiniciar estadísticas</button>
     ${!isOwner(S.dog)?`<button class="btn btn-white btn-block btn-sm" data-action="fam-leave" style="margin-top:8px;color:var(--red)">Salir de la familia de ${esc(S.dog.name)}</button>`:S.dogs.length>1?`<button class="btn btn-white btn-block btn-sm" id="edDel" style="margin-top:8px;color:var(--red)">${I.trash}Eliminar a ${esc(S.dog.name)}</button>`:''}`);
-  const f=$('#edForm',sh);mountDogForm(f,S.dog);$('[data-close]',sh).onclick=()=>closeSheet();
+  const f=$('#edForm',sh);mountDogForm(f,S.dog,{raza:true});$('[data-close]',sh).onclick=()=>closeSheet();
   $('#edSave',sh).onclick=async()=>{const d=readDogForm(f,S.dog);if(!d)return;const b=$('#edSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
-    try{const saved=await DB.saveDog(d);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;closeSheet();renderAll();scheduleReminders(true);toast('Perfil actualizado');}catch(e){console.error(e);b.disabled=false;b.textContent='Guardar';toast('No se pudo guardar. Revisa tu conexión.');}};
+    if(d.breed==='otra'&&(S.dog.breed!=='otra'||S.dog.breedName.toLowerCase()!==d.breedName.toLowerCase()))DB.pedirRaza(d.breedName);
+    try{const saved=await DB.saveDog(d);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;closeSheet();await ensureAvatars([S.dog]);renderAll();scheduleReminders(true);toast('Perfil actualizado');}catch(e){console.error(e);b.disabled=false;b.textContent='Guardar';toast(/breed/.test(e.message||'')?'Falta actualizar la base de datos (migración v10).':'No se pudo guardar. Revisa tu conexión.',4500);}};
   const del=$('#edDel',sh);if(del)del.onclick=()=>confirmSheet(`¿Eliminar a ${S.dog.name}?`,'Se borran su perfil y todos sus paseos. Las rutas se conservan.','Eliminar',async()=>{const id=S.dog.id;await DB.deleteDog(id);S.dogs=S.dogs.filter(x=>x.id!==id);await selectDog(S.dogs[0].id);renderAll();toast('Perfil eliminado');});
 }
 function openDogSwitch(){
@@ -771,7 +861,7 @@ async function exportData(){
   if(S.mode==='cloud'){try{walks=chk(await sb.from('walks').select('*').order('started_at')).map(r=>Object.assign(toWalk(r),{points:r.points}));}catch(e){toast('No se pudo exportar. Revisa tu conexión.');return;}}
   else walks=MEM.walks;
   const data=JSON.stringify({app:'salchipaseo',version:2,exported:new Date().toISOString(),dogs,routes:S.routes,walks});
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=`salchipaseo-respaldo-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=`guauguau-respaldo-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
   toast('Respaldo descargado');
 }
 function importFile(e){
@@ -782,7 +872,7 @@ function importFile(e){
       for(const r of routes)await DB.addRoute(r);
       for(const w of walks)await DB.addWalk(w);
       await selectDog(S.dog.id);renderAll();toast(`Importados ${walks.length} paseos y ${routes.length} rutas para ${S.dog.name}`);
-    }catch(err){console.error(err);toast(err.message==='formato'?'Ese archivo no parece de Salchipaseo':'No se pudo importar todo. Revisa tu conexión.');}
+    }catch(err){console.error(err);toast(err.message==='formato'?'Ese archivo no parece de Guau Guau':'No se pudo importar todo. Revisa tu conexión.');}
     e.target.value='';};
   rd.readAsText(f);
 }
@@ -856,7 +946,7 @@ function onTrackErr(err){
 }
 function askLocationSettings(){
   if(!IS_APP){toast('Permite la ubicación para este sitio en los ajustes del navegador.',4500);return;}
-  confirmSheet('Permite la ubicación','Para registrar el recorrido, SalchiPaseo necesita tu ubicación. En Ajustes toca <b>Ubicación</b> y elige <b>Siempre</b> (o "Al usar la app") para que siga grabando con la pantalla bloqueada.','Abrir Ajustes',async()=>{await NAT.abrirAjustes();},false);
+  confirmSheet('Permite la ubicación','Para registrar el recorrido, Guau Guau necesita tu ubicación. En Ajustes toca <b>Ubicación</b> y elige <b>Siempre</b> (o "Al usar la app") para que siga grabando con la pantalla bloqueada.','Abrir Ajustes',async()=>{await NAT.abrirAjustes();},false);
 }
 function startWalk(mode,route){
   closeSheet(true);
@@ -1179,7 +1269,7 @@ async function makeDemoPhotos(){
   const defs=[['ladeando','#FFC629','Pose oficial de modelo',0,5],['caminando','#2EE59D','Rumbo al Parque Forestal',3,3],['durmiendo','#9DB8FF','Siesta de campeón',8,10],['ladeando','#FF7EB6','¿Dijiste galleta?',15,14],['caminando','#FFB37F','Paseo de sábado',38,9]];
   const load=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});
   for(const [k,bg,capt,daysAgo,f] of defs){
-    try{const m=SPRITE_META[k];const img=await load(ASSETS[k]);const c=document.createElement('canvas');c.width=c.height=720;const x=c.getContext('2d');
+    try{const lk=lookDe(MEM.dogs[0]),m=spriteMeta(k,lk);const img=await load(assetOf(k,lk));const c=document.createElement('canvas');c.width=c.height=720;const x=c.getContext('2d');
       x.fillStyle=bg;x.fillRect(0,0,720,720);x.fillStyle='rgba(255,255,255,.35)';for(let j=0;j<6;j++){x.beginPath();x.arc(80+j*120,90+(j%2)*520,36+j*8,0,7);x.fill();}
       const sx=(f%m.cols)*m.w,sy=Math.floor(f/m.cols)*m.h,dw=620,dh=dw*m.h/m.w;x.drawImage(img,sx,sy,m.w,m.h,50,(720-dh)/2+30,dw,dh);
       const blob=await new Promise(r=>c.toBlob(r,'image/jpeg',.85));
@@ -1255,7 +1345,7 @@ async function scheduleReminders(force){
 async function setReminders(patch,quiet){
   if(!IS_APP)return;
   const st=Object.assign(remState(),patch,{asked:true});
-  if(st.on&&!(await notifAllowed())){st.on=false;LS.set(remKey(),st);toast('Activa las notificaciones de SalchiPaseo en Ajustes del iPhone.',4500);renderSettings();return;}
+  if(st.on&&!(await notifAllowed())){st.on=false;LS.set(remKey(),st);toast('Activa las notificaciones de Guau Guau en Ajustes del iPhone.',4500);renderSettings();return;}
   LS.set(remKey(),st);
   await scheduleReminders(true);if(S.view==='ajustes')renderSettings();
   if(quiet)return;
@@ -1348,14 +1438,14 @@ function openCustomize(tab,rerender){
   if(!cuDraft)cuDraft={ilu:cur?cur.ilu:'feliz',fondo:cur?cur.fondo:'huellitas',useIlu:!!cur||!d.avatarPath,fondoPerfil:d.fondo||'auto',tab:tab||'avatar'};
   if(tab)cuDraft.tab=tab;
   const t=cuDraft.tab;
-  const avPrev=cuDraft.useIlu?`<span class="cu-av" style="background-image:url('${ASSETS['ilu-'+cuDraft.ilu]}'),url('${ASSETS['fondo-'+cuDraft.fondo]}')"></span>`:`<span class="cu-av photo"><img src="${avatarSrc(d)}" alt=""></span>`;
+  const avPrev=cuDraft.useIlu?`<span class="cu-av" style="background-image:url('${assetOf('ilu-'+cuDraft.ilu,lookDe(d))}'),url('${ASSETS['fondo-'+cuDraft.fondo]}')"></span>`:`<span class="cu-av photo"><img src="${avatarSrc(d)}" alt=""></span>`;
   const sh=openSheet(`<div class="sheet-head"><span class="ic ic-orange" style="width:56px;height:56px;border-radius:18px">${I.star}</span><div><h2>Personalizar a ${esc(d.name)}</h2><p class="sub">NV ${lv.level} · ${nf0.format(lv.paseos)} ${lv.paseos===1?'paseo':'paseos'} · ${lv.toNext===1?'falta 1 paseo':'faltan '+lv.toNext+' paseos'} para NV ${lv.level+1}</p></div></div>
     <div class="seg cu-tabs"><button type="button" data-cutab="avatar" class="${t==='avatar'?'on':''}">Avatar</button><button type="button" data-cutab="fondos" class="${t==='fondos'?'on':''}">Fondo del perfil</button></div>
     ${t==='avatar'?`
       <div class="cu-preview">${avPrev}</div>
       ${d.avatarPath&&!parseAv(d.avatarPath)?`<button class="btn btn-white btn-sm btn-block" data-cu-photo style="margin-bottom:10px">${cuDraft.useIlu?'Volver a la foto del álbum':'Usando una foto del álbum'}</button>`:''}
       <p class="flabel">Ilustración</p>
-      <div class="cu-grid">${ILUS.map(x=>`<button type="button" class="cu-opt ${cuDraft.useIlu&&cuDraft.ilu===x.id?'on':''}" data-cu-ilu="${x.id}"><span class="cu-thumb" style="background-image:url('${ASSETS['ilu-'+x.id]}'),url('${ASSETS['fondo-'+cuDraft.fondo]}')"></span><small>${x.name}</small></button>`).join('')}</div>
+      <div class="cu-grid">${ILUS.map(x=>`<button type="button" class="cu-opt ${cuDraft.useIlu&&cuDraft.ilu===x.id?'on':''}" data-cu-ilu="${x.id}"><span class="cu-thumb" style="background-image:url('${assetOf('ilu-'+x.id,lookDe(d))}'),url('${ASSETS['fondo-'+cuDraft.fondo]}')"></span><small>${x.name}</small></button>`).join('')}</div>
       <p class="flabel" style="margin-top:14px">Fondo del avatar</p>
       <div class="cu-grid">${AV_FONDOS.map(x=>`<button type="button" class="cu-opt ${cuDraft.useIlu&&cuDraft.fondo===x.id?'on':''}" data-cu-fondo="${x.id}"><span class="cu-thumb" style="background-image:url('${ASSETS['fondo-'+x.id]}')"></span><small>${x.name}</small></button>`).join('')}</div>
       <p class="hint" style="margin-top:10px">También puedes usar una foto: ábrela en el álbum y toca «Usar como foto de perfil».</p>`:`
@@ -1374,7 +1464,7 @@ function openCustomize(tab,rerender){
     const b=$('#cuSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
     const nd=Object.assign({},d,{fondo:cuDraft.fondoPerfil==='auto'?null:cuDraft.fondoPerfil});
     if(cuDraft.useIlu)nd.avatarPath=`ilu:${cuDraft.ilu}:${cuDraft.fondo}`;
-    try{if(parseAv(nd.avatarPath))await composeAvatar(nd.avatarPath);
+    try{if(parseAv(nd.avatarPath))await composeAvatar(nd.avatarPath,lookDe(nd));
       const saved=await DB.saveDog(nd);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;
       cuDraft=null;closeSheet(true);$('#pgSky').dataset.fondo='';renderAll();toast('¡Listo! Así se ve '+S.dog.name);}
     catch(e){console.error(e);b.disabled=false;b.textContent='Guardar';toast(/fondo/.test(e.message||'')?'Falta actualizar la base de datos (migración v8).':'No se pudo guardar. Revisa tu conexión.',4500);}
@@ -1408,12 +1498,12 @@ async function famInvite(){
   if(S.mode!=='cloud'){toast('Inicia sesión para invitar a tu familia');return;}
   let code;try{code=await DB.invitar(S.dog.id);}catch(e){toast(famErr(e),4500);return;}
   const url=location.origin+location.pathname;
-  const txt=`¡Te invito a la familia de ${S.dog.name} en SalchiPaseo! Abre ${url} (o la app), entra con tu cuenta y en Ajustes → Familia toca «Tengo un código». Código: ${fmtCode(code)}`;
+  const txt=`¡Te invito a la familia de ${S.dog.name} en Guau Guau! Abre ${url} (o la app), entra con tu cuenta y en Ajustes → Familia toca «Tengo un código». Código: ${fmtCode(code)}`;
   const sh=openSheet(`<div class="sheet-head"><span class="ic ic-pink" style="width:56px;height:56px;border-radius:18px">${I.heart}</span><div><h2>Invita a alguien</h2><p class="sub">Con este código podrá ver y pasear a ${esc(S.dog.name)} desde su teléfono.</p></div></div>
     <div class="fam-code">${fmtCode(code)}</div><p class="hint" style="text-align:center">Vence en 7 días y sirve para una persona.</p>
     <div class="row-actions" style="margin-top:14px"><button class="btn btn-white" id="famCopy">Copiar</button><button class="btn btn-orange" id="famShare">Compartir</button></div>`);
   $('#famCopy',sh).onclick=async()=>{try{await navigator.clipboard.writeText(txt);toast('Invitación copiada');}catch(e){toast('Código: '+fmtCode(code));}};
-  $('#famShare',sh).onclick=async()=>{if(navigator.share){try{await navigator.share({title:'SalchiPaseo',text:txt});}catch(e){}}else{try{await navigator.clipboard.writeText(txt);toast('Invitación copiada');}catch(e){}}};
+  $('#famShare',sh).onclick=async()=>{if(navigator.share){try{await navigator.share({title:'Guau Guau',text:txt});}catch(e){}}else{try{await navigator.clipboard.writeText(txt);toast('Invitación copiada');}catch(e){}}};
   loadFamily(S.dog.id);
 }
 function famJoin(){
@@ -1508,7 +1598,7 @@ setInterval(()=>{if(document.visibilityState==='visible'&&S.fam&&(S.fam.members|
 /* ---------- Actividad en vivo: el paseo en la pantalla bloqueada y en la isla dinámica ---------- */
 const LIVE=IS_APP&&NAT&&NAT.actividad?NAT.actividad:null;
 const liveAct={on:false,last:0,frame:0};
-function liveState(){return {perro:S.dog?S.dog.name:'tu perro',inicio:W.started+W.pausedMs,pausa:W.paused&&W.pauseStart?W.pauseStart:null,metros:Math.round(W.distance),metaMin:perWalkMin(),cuadro:liveAct.frame,segundos:Math.round(walkElapsed())};}
+function liveState(){return {raza:lookDe(S.dog),perro:S.dog?S.dog.name:'tu perro',inicio:W.started+W.pausedMs,pausa:W.paused&&W.pauseStart?W.pauseStart:null,metros:Math.round(W.distance),metaMin:perWalkMin(),cuadro:liveAct.frame,segundos:Math.round(walkElapsed())};}
 async function liveStart(){
   if(!LIVE||!W.active||W.mode!=='gps')return;
   try{await LIVE.iniciar(liveState());liveAct.on=true;liveAct.last=Date.now();}catch(e){liveAct.on=false;console.warn('actividad en vivo',e);}
@@ -1521,8 +1611,8 @@ async function liveEnd(){if(!liveAct.on)return;liveAct.on=false;try{await LIVE.t
 async function liveCleanup(){if(!LIVE||W.active)return;try{await LIVE.terminar({inmediato:true});}catch(e){}}
 async function testNotif(){
   if(!IS_APP){toast('Los avisos funcionan en la app de iPhone.');return;}
-  if(!(await notifAllowed())){toast('Activa las notificaciones de SalchiPaseo en Ajustes del iPhone.',4500);return;}
-  try{await NAT.programarAviso('Aviso de prueba',`Si ves esto, los avisos de SalchiPaseo funcionan. ${S.dog?S.dog.name:'Tu perro'} lo aprueba.`,60,{datos:{tipo:'test'}});toast('Listo: el aviso llega en 1 minuto. Puedes cerrar la app.',4000);}catch(e){toast('No se pudo programar el aviso');}
+  if(!(await notifAllowed())){toast('Activa las notificaciones de Guau Guau en Ajustes del iPhone.',4500);return;}
+  try{await NAT.programarAviso('Aviso de prueba',`Si ves esto, los avisos de Guau Guau funcionan. ${S.dog?S.dog.name:'Tu perro'} lo aprueba.`,60,{datos:{tipo:'test'}});toast('Listo: el aviso llega en 1 minuto. Puedes cerrar la app.',4000);}catch(e){toast('No se pudo programar el aviso');}
 }
 if(NAT&&IS_APP){try{NAT.alTocarAviso(n=>{const t=n&&n.extra&&n.extra.tipo;if(!S.dog)return;if(t==='familia'&&n.extra.walkId){openWalkFromFamily(n.extra.walkId,n.extra.dogId);}else if(t==='walk'&&!W.active){closeSheet(true);go('perfil');openStartSheet();}else if(t==='min'&&W.active){$('#live').hidden=false;}});}catch(e){}}
 
