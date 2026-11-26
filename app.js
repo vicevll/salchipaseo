@@ -115,8 +115,8 @@ const DEFAULT_DOG=()=>({id:null,name:'',birthDate:'',weight:9,ideal:9,size:'std'
    Capa de datos
    ========================================================= */
 let sb=null;
-const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5),routine:Array.isArray(r.routine)?r.routine:null,goalMin:r.goal_minutes||null,avatarPath:r.avatar_path||null,walkMin:r.walk_min_minutes||null,_c4:Object.prototype.hasOwnProperty.call(r,'walk_min_minutes'),xp:typeof r.xp==='number'?r.xp:null,fondo:r.fondo||null,ownerId:r.user_id||null,_c8:Object.prototype.hasOwnProperty.call(r,'xp')});
-const fromDog=d=>Object.assign({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake,routine:d.routine&&d.routine.length?d.routine:null,goal_minutes:d.goalMin||null,avatar_path:d.avatarPath||null},(d._c4||d.walkMin)?{walk_min_minutes:d.walkMin||null}:{},(d._c8||d.fondo)?{fondo:d.fondo||null}:{});
+const toDog=r=>({id:r.id,name:r.name,birthDate:r.birth_date||'',weight:+r.weight_kg||9,ideal:+(r.ideal_weight_kg||r.weight_kg)||9,size:r.size||'std',neutered:!!r.neutered,activity:r.activity||'auto',kcal:+r.food_kcal_per_kg||3600,wake:(r.wake_time||'07:30').slice(0,5),routine:Array.isArray(r.routine)?r.routine:null,goalMin:r.goal_minutes||null,avatarPath:r.avatar_path||null,walkMin:r.walk_min_minutes||null,_c4:Object.prototype.hasOwnProperty.call(r,'walk_min_minutes'),xp:typeof r.xp==='number'?r.xp:null,fondo:r.fondo||null,ownerId:r.user_id||null,_c8:Object.prototype.hasOwnProperty.call(r,'xp'),paseos:typeof r.paseos==='number'?r.paseos:null,logros:Array.isArray(r.logros)?r.logros:null,_c9:Object.prototype.hasOwnProperty.call(r,'paseos')});
+const fromDog=d=>Object.assign({name:d.name,birth_date:d.birthDate||null,weight_kg:d.weight,ideal_weight_kg:d.ideal,size:d.size,neutered:d.neutered,activity:d.activity,food_kcal_per_kg:Math.round(d.kcal),wake_time:d.wake,routine:d.routine&&d.routine.length?d.routine:null,goal_minutes:d.goalMin||null,avatar_path:d.avatarPath||null},(d._c4||d.walkMin)?{walk_min_minutes:d.walkMin||null}:{},(d._c8||d.fondo)?{fondo:d.fondo||null}:{},(d._c9&&d.logros)?{logros:d.logros}:{});
 const toWalk=r=>({id:r.id,by:r.user_id||null,dogId:r.dog_id,routeId:r.route_id,start:Date.parse(r.started_at),duration:r.duration_s,distance:r.distance_m,preview:r.preview||[],pee:r.pee,poop:r.poop,mode:r.mode});
 const fromWalk=w=>({id:w.id,dog_id:w.dogId,route_id:w.routeId||null,started_at:new Date(w.start).toISOString(),duration_s:Math.round(w.duration),distance_m:Math.round(w.distance),points:w.points||null,preview:w.preview||null,pee:!!w.pee,poop:!!w.poop,mode:w.mode||'gps'});
 const toRoute=r=>({id:r.id,name:r.name,color:r.color||'orange',points:r.points||[],distance:r.distance_m||0,created:Date.parse(r.created_at)});
@@ -270,20 +270,35 @@ const routeById=id=>S.routes.find(r=>r.id===id);
 function routeStats(r){const ws=S.walks.filter(w=>w.routeId===r.id);const avg=ws.length?sum(ws,'duration')/ws.length:r.distance/(3/3.6);return {times:ws.length,avg,last:ws.length?Math.max(...ws.map(w=>w.start)):null,est:!ws.length};}
 /* nivel: 1 XP por minuto + 10 XP por km */
 const walkXp=w=>Math.max(0,Math.round((w.duration||0)/60+(w.distance||0)/100));
-function dogXp(d){d=d||S.dog;const calc=Math.round(sum(S.walks,'duration')/60+sum(S.walks,'distance')/100);return (S.mode==='cloud'&&d&&typeof d.xp==='number')?Math.max(0,d.xp):calc;}
-function levelInfo(){const xp=dogXp();const need=L=>50*L*(L-1);let L=Math.max(1,Math.floor((1+Math.sqrt(1+8*xp/100))/2));while(need(L+1)<=xp)L++;while(L>1&&need(L)>xp)L--;const a=need(L),b=need(L+1);return {xp,level:L,frac:(xp-a)/(b-a),toNext:b-xp};}
+const cuentaPaseo=w=>(w.duration||0)>=60;
+const LV_PASEOS=L=>Math.round(1.5*(L-1)*L); /* paseos acumulados para llegar a cada nivel (sin logros) */
+function paseosTotales(d){d=d||S.dog;const calc=S.walks.filter(cuentaPaseo).length;return (S.mode==='cloud'&&d&&typeof d.paseos==='number')?Math.max(0,d.paseos):calc;}
+function levelInfo(){const p=paseosTotales();let b=1;while(LV_PASEOS(b+1)<=p)b++;const lg=medalsUnlocked().length,a=LV_PASEOS(b),c=LV_PASEOS(b+1);return {paseos:p,logros:lg,base:b,level:b+lg,frac:(p-a)/(c-a),toNext:c-p};}
 const MEDALS=[
-  {name:'Primer paseo',desc:'Completa tu primer paseo',color:'#18B05A',icon:'paw',test:s=>s.n>=1},
-  {name:'Madrugador',desc:'Un paseo antes de las 7:30',color:'#FFB000',icon:'sun',test:s=>s.early},
-  {name:'10 km',desc:'Suma 10 km caminados',color:'#1F5EFF',icon:'route',test:s=>s.km>=10},
-  {name:'50 km',desc:'Suma 50 km caminados',color:'#7C5CF0',icon:'route',test:s=>s.km>=50},
-  {name:'Racha de 7',desc:'7 días seguidos paseando',color:'#FF6B1A',icon:'flame',test:s=>s.smax>=7},
-  {name:'Paseo de 1 h',desc:'Un paseo de una hora o más',color:'#FF7EB6',icon:'clock',test:s=>s.longest>=3600},
-  {name:'Explorador',desc:'Guarda 3 rutas',color:'#19C3A6',icon:'map',test:s=>s.routes>=3},
-  {name:'Noctámbulo',desc:'Un paseo después de las 21:00',color:'#3A2A8C',icon:'moon',test:s=>s.night},
+  {id:'primer',name:'Primer paseo',desc:'Completa tu primer paseo',color:'#18B05A',icon:'paw',test:s=>s.n>=1},
+  {id:'madrugador',name:'Madrugador',desc:'Un paseo antes de las 7:30',color:'#FFB000',icon:'sun',test:s=>s.early},
+  {id:'10km',name:'10 km',desc:'Suma 10 km caminados',color:'#1F5EFF',icon:'route',test:s=>s.km>=10},
+  {id:'50km',name:'50 km',desc:'Suma 50 km caminados',color:'#7C5CF0',icon:'route',test:s=>s.km>=50},
+  {id:'racha7',name:'Racha de 7',desc:'7 días seguidos paseando',color:'#FF6B1A',icon:'flame',test:s=>s.smax>=7},
+  {id:'1h',name:'Paseo de 1 h',desc:'Un paseo de una hora o más',color:'#FF7EB6',icon:'clock',test:s=>s.longest>=3600},
+  {id:'explorador',name:'Explorador',desc:'Guarda 3 rutas',color:'#19C3A6',icon:'map',test:s=>s.routes>=3},
+  {id:'noctambulo',name:'Noctámbulo',desc:'Un paseo después de las 21:00',color:'#3A2A8C',icon:'moon',test:s=>s.night},
 ];
-function medalStats(){return {n:S.walks.length,km:sum(S.walks,'distance')/1000,smax:streakMax(),longest:Math.max(0,...S.walks.map(w=>w.duration)),routes:S.routes.length,
-  early:S.walks.some(w=>{const d=new Date(w.start);return d.getHours()*60+d.getMinutes()<450;}),night:S.walks.some(w=>new Date(w.start).getHours()>=21)};}
+function savedLogros(){const d=S.dog;if(!d)return [];const loc=(S.mode==='cloud'&&d.id)?(LS.get(lsKey('logros.'+d.id))||[]):[];return [...new Set([...(d.logros||[]),...loc])];}
+function medalsUnlocked(){const ms=medalStats(),saved=savedLogros();return MEDALS.filter(m=>saved.includes(m.id)||m.test(ms));}
+const medalOk=m=>medalsUnlocked().includes(m);
+let logroSync=false;
+async function syncLogros(){
+  if(!S.dog)return [];const d=S.dog,saved=savedLogros(),ms=medalStats();
+  const nuevos=MEDALS.filter(m=>!saved.includes(m.id)&&m.test(ms));
+  const all=[...new Set([...saved,...nuevos.map(m=>m.id)])].sort(),changed=all.length!==(d.logros||[]).length;
+  d.logros=all;
+  if(S.mode==='cloud'&&d.id){LS.set(lsKey('logros.'+d.id),all);
+    if(d._c9&&changed&&!logroSync){logroSync=true;try{const saved2=await DB.saveDog(d);if(saved2&&saved2.logros)d.logros=saved2.logros;}catch(e){console.warn('logros',e);}logroSync=false;}}
+  return nuevos;
+}
+function medalStats(){const ws=S.walks.filter(cuentaPaseo);return {n:ws.length,km:sum(S.walks,'distance')/1000,smax:streakMax(),longest:Math.max(0,...S.walks.map(w=>w.duration)),routes:S.routes.length,
+  early:ws.some(w=>{const d=new Date(w.start);return d.getHours()*60+d.getMinutes()<450;}),night:ws.some(w=>new Date(w.start).getHours()>=21)};}
 
 /* =========================================================
    Ilustraciones
@@ -365,8 +380,10 @@ function barChart(o){
    ========================================================= */
 function show(scr){$$('.screen').forEach(s=>s.classList.toggle('on',s.id==='scr-'+scr));window.scrollTo(0,0);}
 function go(v){
+  if(v==='salud'){v='stats';S.ptab='hoy';}
   S.view=v;$$('.view').forEach(x=>x.classList.toggle('on',x.id==='v-'+v));
-  $$('.bnav [data-go]').forEach(b=>b.classList.toggle('on',b.dataset.go===v||((v==='ajustes'||v==='fotos')&&b.dataset.go==='perfil')));
+  $$('.bnav [data-go]').forEach(b=>b.classList.toggle('on',b.dataset.go===v||(v==='fotos'&&b.dataset.go==='perfil')));
+  if(v==='stats')setPtab(S.ptab||'hoy',true);
   if(v==='stats')renderStats();if(v==='ajustes')renderSettings();if(v==='fotos')renderGallery();
   window.scrollTo(0,0);
 }
@@ -466,7 +483,7 @@ function renderProfile(){
   const nx=nextItems();
   const ws=weekStart(new Date());const wk=[];for(let i=0;i<7;i++){const a=addDays(ws,i);const m=sum(walksBetween(a.getTime(),addDays(a,1).getTime()),'duration')/60;wk.push({a,m});}
   const wmax=Math.max(goal,...wk.map(x=>x.m),1);const todayKey=dayStart(new Date()).getTime();
-  const ms=medalStats();
+  const ms=medalStats(),mu=medalsUnlocked();
   $('#pgCard').innerHTML=`
     <div class="pg-name"><h1>${esc(d.name)}</h1><button data-action="edit-dog" aria-label="Editar perfil">${I.pencil}</button></div>
     <div class="pg-hp"><i style="width:${Math.min(100,tm/goal*100)}%"></i></div>
@@ -481,12 +498,9 @@ function renderProfile(){
       <div><b><span style="color:var(--blue)">${I.route}</span>${nf1.format(km)}</b><span>Km totales</span></div>
       <div><b><span style="color:var(--tan)">${I.paw}</span>${nf0.format(S.walks.length)}</b><span>Paseos</span></div>
     </div>
-    <div class="pg-act"><button class="pg-btn" data-action="start-sheet">Pasear</button><div class="pg-cost"><span>${I.clock}${left?left+' min':'¡listo!'}</span><span style="color:var(--tan)">${I.paw}<b style="color:var(--slate)">${done}/${wcount}</b></span></div></div>
-    <div class="pg-act soft"><button class="pg-btn soft" data-go="rutas">Rutas</button><div class="pg-cost"><span>${I.route}${S.routes.length}</span></div></div>
-    <div class="pg-sec">
-      <div class="xp-row"><span>XP ${nf0.format(lv.xp)}</span><span>faltan ${nf0.format(lv.toNext)} para NV ${lv.level+1}</span></div>
-      <div class="goalbar"><i style="width:${lv.frac*100}%;background:linear-gradient(90deg,#9DB8FF,#1F5EFF)"></i></div>
-    </div>
+    <button class="pg-next" data-action="customize-fondos"><span class="pg-next-top"><b>NV ${lv.level}</b><span>${lv.toNext===1?'¡Falta 1 paseo':'Faltan '+lv.toNext+' paseos'} para NV ${lv.level+1}!</span></span>
+      <span class="pg-next-bar"><i style="width:${Math.max(4,lv.frac*100)}%"></i></span>
+      <small>${nf0.format(lv.paseos)} ${lv.paseos===1?'paseo':'paseos'}${lv.logros?` · +${lv.logros} ${lv.logros===1?'nivel':'niveles'} por logros`:' · cada logro regala 1 nivel'}</small></button>
     <div class="pg-sec"><h3>${I.camera.replace('<svg','<svg width="20" height="20"')}Álbum<small>${S.photos.length} ${S.photos.length===1?'foto':'fotos'}</small></h3>
       <div class="album-strip">${S.photos.slice(0,8).map((p,i)=>`<button class="polaroid mini" data-photo="${p.id}" style="--r:${[-3,2,-1.5,3,-2,1.5,-2.5,2.5][i%8]}deg"><span class="ph-img"><img data-thumb="${p.id}" alt=""></span></button>`).join('')}
         <button class="polaroid mini add" data-action="add-photo"><span class="ph-img">${I.camera}<b>Subir</b></span></button></div>
@@ -498,8 +512,8 @@ function renderProfile(){
     <div class="pg-sec"><h3>${I.trend.replace('<svg','<svg width="20" height="20"')}Esta semana<small>${nf0.format(Math.round(sum(wk,'m')))} min</small></h3>
       <div class="minibars">${wk.map(x=>`<div class="${x.a.getTime()===todayKey?'today':''}"><i class="${x.m>=goal?'met':''}" style="height:${Math.max(3,x.m/wmax*92)}px" title="${Math.round(x.m)} min"></i>${DOW1[x.a.getDay()]}</div>`).join('')}</div>
     </div>
-    <div class="pg-sec"><h3>${I.flame.replace('<svg','<svg width="20" height="20"')}Logros<small>${MEDALS.filter(m=>m.test(ms)).length} de ${MEDALS.length}</small></h3>
-      <div class="medals">${MEDALS.map((m,i)=>{const ok=m.test(ms);return `<button class="medal ${ok?'':'locked'}" data-medal="${i}"><span class="m" style="background:${m.color}">${I[m.icon]}</span>${esc(m.name)}</button>`;}).join('')}</div>
+    <div class="pg-sec"><h3>${I.flame.replace('<svg','<svg width="20" height="20"')}Logros<small>${mu.length} de ${MEDALS.length} · cada uno +1 nivel</small></h3>
+      <div class="medals">${MEDALS.map((m,i)=>{const ok=mu.includes(m);return `<button class="medal ${ok?'':'locked'}" data-medal="${i}"><span class="m" style="background:${m.color}">${I[m.icon]}</span>${esc(m.name)}</button>`;}).join('')}</div>
     </div>`;
   hydratePhotos($('#pgCard'));
 }
@@ -542,6 +556,10 @@ function renameSheet(r){
 /* =========================================================
    ESTADÍSTICAS
    ========================================================= */
+function setPtab(t,silent){
+  S.ptab=t;$$('[data-ptab]').forEach(b=>b.classList.toggle('on',b.dataset.ptab===t));$$('.ptab').forEach(p=>p.hidden=p.dataset.p!==t);
+  if(t==='numeros')renderStats();if(!silent)window.scrollTo(0,0);
+}
 function renderStats(){
   const body=$('#statsBody');
   if(!S.walks.length){body.innerHTML=`<div class="empty"><img data-asset="durmiendo" alt=""><h3>Aún no hay números</h3><p>Cuando ${esc(S.dog.name)} salga a pasear verás minutos por día, la proyección de la semana y sus horarios favoritos.</p><button class="btn btn-orange btn-block" data-action="start-sheet">${I.play}Primer paseo</button></div>`;bindAssets(body);return;}
@@ -587,7 +605,7 @@ function renderStats(){
   <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.sun}</span><h3>¿A qué hora pasean?</h3></div><div class="hbars">${tod.map(t=>`<div class="hbar"><span>${t.l}</span><div class="track"><i style="width:${t.n/todMax*100}%"></i></div><em>${t.n}</em></div>`).join('')}</div></div>
   <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.route}</span><h3>Rutas más usadas</h3></div><div class="hbars">${rc.map(x=>`<div class="hbar" style="grid-template-columns:120px 1fr 34px"><span title="${esc(x.r.name)}">${esc(x.r.name)}</span><div class="track"><i style="width:${x.n/rMax*100}%;background:${(COLORS[x.r.color]||COLORS.orange)[0]}"></i></div><em>${x.n}</em></div>`).join('')}</div></div>
   <div class="card"><div class="ctitle"><span class="ic ic-green">${I.paw}</span><h3>Historial</h3><span class="badge">${S.walks.length} paseos</span></div>
-    <div class="history">${(()=>{const fn=famNames(),multi=Object.keys(fn).length>1,me=S.user&&S.user.id;return hist.map(w=>{const r=routeById(w.routeId);const quien=multi&&w.by?(w.by===me?'tú':fn[w.by]||''):'';return `<div class="hrow"><div class="thumb">${routeSVG(walkPts(w),{w:48,h:48,bg:walkColor(w),pad:8,sw:3,blocks:false})}</div>
+    <div class="history">${(()=>{const fn=famNames(),multi=Object.keys(fn).length>1,me=S.user&&S.user.id;return hist.map(w=>{const r=routeById(w.routeId);const quien=multi&&w.by?(w.by===me?'tú':fn[w.by]||''):'';return `<div class="hrow" data-walk-view="${w.id}"><div class="thumb">${routeSVG(walkPts(w),{w:48,h:48,bg:walkColor(w),pad:8,sw:3,blocks:false})}</div>
       <div class="name">${esc(r?r.name:'Paseo libre')}<span class="ico">${w.pee?I.pee:''}${w.poop?I.poop:''}</span><small>${relDay(w.start)} · ${timeOf(w.start)}${quien?` · <span class="by">${esc(quien)}</span>`:''}</small></div>
       <div class="val">${fmtDur(w.duration)}<small>${fmtKm(w.distance)}</small></div><button class="icon-btn" data-del-walk="${w.id}" aria-label="Eliminar paseo">${I.trash}</button></div>`;}).join('');})()}</div>
     ${S.walks.length>S.histN?`<button class="btn btn-white btn-block btn-sm" id="moreHist" style="margin-top:10px">Ver más</button>`:''}</div>`;
@@ -614,7 +632,12 @@ function renderHealth(){
     const badge=it.type==='walk'?(it.done?`<span class="badge good">${I.check}Hecho</span>`:it.late?`<span class="badge warn">Pendiente</span>`:''):'';
     tl+=`<div class="tl-item ${it.done&&it.type!=='walk'?'past':''}"><span class="time">${fmtHM(it.t)}</span><span class="node" style="background:${bg}">${ic}</span><span class="what">${esc(it.label)}<small>${esc(it.detail)}</small></span>${badge}</div>`;});
   if(!placed)tl+=`<div class="tl-now"><span>${fmtHM(sc.nowMin)}</span><span class="nd"></span><span>Ahora</span></div>`;
+  const ws=walksToday(),done=ws.length,wc=walkCount(),stk=streak(),nx=nextItems().find(it=>it.type==='walk'),pc=Math.min(1,tm/goal),R=46,C=2*Math.PI*R;
   $('#healthBody').innerHTML=`
+    <div class="card prog-hero"><div class="ring"><svg viewBox="0 0 110 110"><circle cx="55" cy="55" r="${R}" class="bg"/><circle cx="55" cy="55" r="${R}" class="fg" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${(C*(1-pc)).toFixed(1)}"/></svg><div><b>${tm}</b><span>de ${goal} min</span></div></div>
+      <div class="prog-facts"><div><span class="ic ic-green">${I.paw}</span><span><b>${done} de ${wc}</b><small>paseos hoy</small></span></div>
+        <div><span class="ic ic-orange">${I.flame}</span><span><b>${stk} ${stk===1?'día':'días'}</b><small>de racha</small></span></div>
+        <div><span class="ic ic-blue">${I.clock}</span><span><b>${nx?fmtHM(nx.t):'¡Listo por hoy!'}</b><small>${nx?esc(nx.label):'Todos los paseos hechos'}</small></span></div></div></div>
     <div class="card"><div class="ctitle"><span class="ic ic-green">${I.walk}</span><h3>Paseo ideal</h3><span class="badge ${avgOk?'good':'warn'}">${avgOk?I.check+'Van bien':I.alert+'Falta movimiento'}</span></div>
       <div class="big-num">${goal}<small>min al día${p.goalMin?' · tu meta':''}</small></div><p class="muted" style="margin-top:6px;font-weight:700">${p.goalMin?`Recomendado: ${wr.total} min en ${wr.count} paseos`:`${wr.count} paseos de ~${wr.each} min`}</p>
       <div style="margin-top:14px"><div class="goal-row"><span>Hoy</span><span>${tm} / ${goal} min</span></div><div class="goalbar"><i style="width:${Math.min(100,tm/goal*100)}%"></i></div>
@@ -624,6 +647,8 @@ function renderHealth(){
       <button class="btn btn-white btn-block btn-sm" data-action="edit-goals" style="margin-top:12px">${I.target}Editar metas de ${esc(p.name)}</button></div>
     ${alerts.map(([k,ic,t])=>`<div class="alert ${k}">${ic}<span>${t}</span></div>`).join('')}
     <div class="card"><div class="ctitle"><span class="ic ic-yellow">${I.clock}</span><h3>Rutina de hoy</h3><button class="btn btn-white btn-sm right" data-action="edit-routine">${I.pencil}Editar</button></div><div class="timeline">${tl}</div><p class="hint" style="margin-top:8px">${customRoutine()?'Rutina personalizada. Puedes volver a la recomendada cuando quieras.':'Rutina recomendada: paseo primero y comida 45 min después, así evitas ejercicio con la guata llena.'}</p></div>
+`;
+  $('#careBody').innerHTML=`
     <div class="card sleep-card"><div><div class="ctitle" style="margin-bottom:6px"><span class="ic" style="background:rgba(255,255,255,.2);color:#fff">${I.moon}</span><h3>Descanso</h3></div><div class="big-num" style="color:#fff">12–14<small style="color:rgba(255,255,255,.8)">h</small></div><p class="muted" style="margin-top:6px;font-weight:700">${tm>=goal?'Hoy se ganó una siesta de campeón.':'Cama cómoda y sin escaleras.'}</p></div><img data-asset="durmiendo" alt="Salchicha durmiendo"></div>
     <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.heart}</span><h3>Cuidados de salchicha</h3></div><div class="tips">
       <div class="tip"><span class="ic ic-pink">${I.spine}</span><div><b>Cuida su espalda</b><p>Nada de saltos desde el sillón ni escaleras. Al tomarlo, sujeta pecho y trasero a la vez.</p></div></div>
@@ -631,7 +656,7 @@ function renderHealth(){
       <div class="tip"><span class="ic ic-orange">${I.paw}</span><div><b>Revisa sus patas</b><p>Al volver del paseo mira sus almohadillas: piedritas, cortes o espigas se detectan rápido.</p></div></div>
       <div class="tip"><span class="ic ic-green">${I.thermo}</span><div><b>Test de los 7 segundos</b><p>Si no aguantas la mano 7 segundos en la vereda, está muy caliente para sus patas.</p></div></div></div></div>
     <p class="disclaimer">Recomendaciones orientativas basadas en fórmulas veterinarias generales. Ante dudas de peso o salud, consulta con tu veterinario.</p>`;
-  bindAssets($('#healthBody'));
+  bindAssets($('#healthBody'));bindAssets($('#careBody'));
 }
 
 /* =========================================================
@@ -654,14 +679,9 @@ function renderSettings(){
     ${S.mode==='cloud'?`<div class="card"><div class="ctitle"><span class="ic ic-pink">${I.heart}</span><h3>Familia de ${esc(S.dog.name)}</h3></div>
       <div class="list" id="famList"></div>
       <div class="row-actions" style="margin-top:12px"><button class="btn btn-orange btn-sm" data-action="fam-invite">${I.plus}Invitar</button><button class="btn btn-white btn-sm" data-action="fam-join">Tengo un código</button></div>
-      <p class="hint" style="margin-top:10px">Comparte a ${esc(S.dog.name)} con otra persona: los dos registran paseos desde su teléfono y todo queda en el mismo perfil.</p>
+      <p class="hint" style="margin-top:10px">Comparte a ${esc(S.dog.name)} con otra persona: los dos registran paseos desde su teléfono y todo se sincroniza solo. Cuando alguien sale a pasearlo, al resto le llega un aviso con su ruta.</p>
       <button class="btn btn-ghost btn-sm btn-block" id="famLeave" data-action="fam-leave" style="margin-top:6px;color:var(--red)" hidden>Salir de esta familia</button></div>`:''}
-    <div class="card"><div class="ctitle"><span class="ic ic-blue">${I.down}</span><h3>Tus datos</h3></div><div class="list">
-      <button class="li" data-action="export"><span class="ic ic-blue">${I.down}</span><span>Exportar respaldo<small>Archivo .json con perfiles, rutas y paseos</small></span><span class="chev">${I.chev}</span></button>
-      <label class="li" for="importFile" style="cursor:pointer"><span class="ic ic-blue">${I.up}</span><span>Importar respaldo<small>Agrega rutas y paseos desde un .json</small></span><span class="chev">${I.chev}</span></label>
-      <button class="li" data-action="reset-stats"><span class="ic" style="background:#FDE3E1;color:var(--red)">${I.sync}</span><span>Reiniciar estadísticas de ${esc(S.dog.name)}<small>Borra el historial de paseos · el perfil se mantiene</small></span><span class="chev">${I.chev}</span></button>
-      ${S.mode==='cloud'?`<button class="li" data-action="sync"><span class="ic ic-green">${I.sync}</span><span>Sincronizar ahora<small>${q?q+' pendientes de subir':'Todo al día'}</small></span><span class="chev">${I.chev}</span></button>`:''}
-    </div><input type="file" id="importFile" accept="application/json,.json" class="sr"></div>
+    ${S.mode==='cloud'&&q?`<div class="card sync-card"><div class="li static"><span class="ic ic-green">${I.sync}</span><span>${q} ${q===1?'paseo guardado':'paseos guardados'} en este teléfono<small>Se grabaron sin conexión y aún no llegan a tu cuenta</small></span></div><button class="btn btn-orange btn-block btn-sm" data-action="sync" style="margin-top:10px">${I.sync}Sincronizar ahora</button></div>`:''}
     ${IS_APP?(()=>{const st=remState(),tm=walkTimes();return `<div class="card"><div class="ctitle"><span class="ic ic-orange">${I.bell}</span><h3>Avisos</h3></div><div class="list">
       ${S.mode==='cloud'?`<button class="li" data-action="rem-toggle" role="switch" aria-checked="${st.on}"><span class="ic ic-green">${I.walk}</span><span>Recordarme los paseos<small>${tm.length?esc(tm.join(' · ')):'Según la rutina de '+esc(S.dog.name)}</small></span><span class="toggle ${st.on?'on':''}"><i></i></span></button>
       ${st.on?`<div class="li static"><span class="ic ic-yellow">${I.clock}</span><span>Avisarme<div class="st-chips rem-chips">${REM_BEFORE.map(m=>`<button type="button" class="st-chip ${st.before===m?'on':''}" data-rem-before="${m}">${m?m+' min antes':'A la hora'}</button>`).join('')}</div></span></div>
@@ -675,7 +695,7 @@ function renderSettings(){
       <button class="li" data-action="logout"><span class="ic ic-yellow">${I.out}</span><span>${S.mode==='demo'?'Salir del modo demo':'Cerrar sesión'}</span></button></div></div>
     <p class="disclaimer">Salchipaseo · v2.0</p>`;
   bindAssets($('#settingsBody'));
-  $('#importFile').onchange=importFile;
+  const imp=$('#importFile');if(imp)imp.onchange=importFile;
   if(S.mode==='cloud'){renderFamilyCard();if(!S.fam||S.fam.dogId!==S.dog.id)loadFamily(S.dog.id);}
 }
 
@@ -721,6 +741,7 @@ function openEditDog(){
   const sh=openSheet(`<div class="sheet-head"><img data-asset="ladeando" alt=""><div><h2>Editar perfil</h2><p class="sub">Las recomendaciones se recalculan al guardar.</p></div></div><form class="form" id="edForm" autocomplete="off"></form>
     <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-orange" id="edSave">Guardar</button></div>
     <button class="btn btn-white btn-block btn-sm" data-action="customize" style="margin-top:12px">${I.star}Cambiar avatar y fondo</button>
+    <button class="btn btn-white btn-block btn-sm" data-action="reset-stats" style="margin-top:8px">${I.sync}Reiniciar estadísticas</button>
     ${!isOwner(S.dog)?`<button class="btn btn-white btn-block btn-sm" data-action="fam-leave" style="margin-top:8px;color:var(--red)">Salir de la familia de ${esc(S.dog.name)}</button>`:S.dogs.length>1?`<button class="btn btn-white btn-block btn-sm" id="edDel" style="margin-top:8px;color:var(--red)">${I.trash}Eliminar a ${esc(S.dog.name)}</button>`:''}`);
   const f=$('#edForm',sh);mountDogForm(f,S.dog);$('[data-close]',sh).onclick=()=>closeSheet();
   $('#edSave',sh).onclick=async()=>{const d=readDogForm(f,S.dog);if(!d)return;const b=$('#edSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
@@ -739,7 +760,7 @@ async function selectDog(id){
   const [routes,walks,photos]=await Promise.all([DB.listRoutes(),DB.listWalks(S.dog.id),DB.listPhotos(S.dog.id)]);S.routes=routes;S.walks=walks;S.photos=photos;
   try{await ensureUrls(S.dogs.map(d=>d.avatarPath));}catch(e){}
   try{await ensureAvatars(S.dogs);}catch(e){}
-  if(S.mode==='cloud')loadFamily(S.dog.id);
+  syncLogros().catch(()=>{});if(S.mode==='cloud')loadFamily(S.dog.id);
 }
 
 /* =========================================================
@@ -963,14 +984,15 @@ function openFinish(snap){
     const walk={id:uuid(),dogId:dog.id,routeId:snap.route?snap.route.id:(newRoute?newRoute.id:null),start:snap.started,duration:Math.round(snap.elapsed),distance:Math.round(snap.distance),points:pts.length>1?pts:null,preview:thin(pts,60),pee:$('#fPee',sh).getAttribute('aria-pressed')==='true',poop:$('#fPoop',sh).getAttribute('aria-pressed')==='true',mode:snap.mode};
     const b=$('#fSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
     if(newRoute)S.routes.push(newRoute);
-    const lvAntes=dog.id===S.dog.id?levelInfo().level:0;
+    const lvAntes=dog.id===S.dog.id?levelInfo().level:0,lgAntes=dog.id===S.dog.id?medalsUnlocked().map(m=>m.id):[];
     if(dog.id===S.dog.id)S.walks.unshift(walk);
     if(typeof dog.xp==='number')dog.xp+=walkXp(walk);
+    if(typeof dog.paseos==='number'&&cuentaPaseo(walk))dog.paseos++;
     endLive();
     try{if(newRoute)await DB.addRoute(newRoute);await DB.addWalk(walk);toast(`¡Paseo guardado! ${fmtDur(walk.duration)} con ${dog.name}`);}
     catch(e){console.error(e);const q=queueGet();q.push({route:newRoute,walk:fromLocal(walk)});queueSet(q);toast('Sin conexión: el paseo quedó en el teléfono y se subirá después',4200);}
     renderAll();
-    if(dog.id===S.dog.id){const lv=levelInfo().level;if(lv>lvAntes)setTimeout(()=>celebrateLevel(lvAntes,lv),1200);}
+    if(dog.id===S.dog.id){const nuevos=(await syncLogros()).filter(m=>!lgAntes.includes(m.id));renderAll();const lv=levelInfo().level;if(lv>lvAntes)setTimeout(()=>celebrateLevel(lvAntes,lv,nuevos),1200);}
   };
 }
 const fromLocal=w=>Object.assign({},w);
@@ -1257,7 +1279,7 @@ function maybeAskReminders(){
 function confirmResetStats(){
   if(W.active){toast('Termina el paseo en curso antes de reiniciar.');return;}
   const d=S.dog,n=S.walks.length;
-  confirmSheet(`¿Reiniciar las estadísticas de ${d.name}?`,`Se borran para siempre sus <b>${n} ${n===1?'paseo':'paseos'}</b>: minutos, kilómetros, rachas y medallas vuelven a cero. ${typeof d.xp==='number'?`Su nivel (NV ${levelInfo().level}) se mantiene, igual que`:'Se mantienen'} su perfil, rutina, metas, fotos y rutas guardadas.${S.fam&&S.fam.members&&S.fam.members.length>1?' Se reinicia para toda la familia.':''}`,'Reiniciar',async()=>{
+  confirmSheet(`¿Reiniciar las estadísticas de ${d.name}?`,`Se borran para siempre sus <b>${n} ${n===1?'paseo':'paseos'}</b>: minutos, kilómetros y rachas vuelven a cero. ${typeof d.paseos==='number'?`Su nivel (NV ${levelInfo().level}) y sus logros se mantienen, igual que`:'Se mantienen'} su perfil, rutina, metas, fotos y rutas guardadas.${S.fam&&S.fam.members&&S.fam.members.length>1?' Se reinicia para toda la familia.':''}`,'Reiniciar',async()=>{
     try{await DB.resetWalks(d.id);
       queueSet(queueGet().filter(it=>!(it.walk&&it.walk.dogId===d.id)));
       if(S.mode==='cloud')LS.del(lsKey('live'));
@@ -1304,10 +1326,11 @@ function applyFondo(){
     fx.className='bokeh fx-'+f.fx;fx.innerHTML=fxHTML(f.fx);
   }
 }
-function celebrateLevel(antes,lv){
-  const nuevos=FONDOS.filter(f=>f.lvl>antes&&f.lvl<=lv),f=nuevos[nuevos.length-1];
+function celebrateLevel(antes,lv,logros){
+  const nuevos=FONDOS.filter(f=>f.lvl>antes&&f.lvl<=lv),f=nuevos[nuevos.length-1];const lgs=(logros||[]).slice(0,3);
   const sh=openSheet(`<div class="lvl-up"><div class="lvl-burst"><span>NV</span><b>${lv}</b></div>
     <h2>¡${esc(S.dog.name)} subió a nivel ${lv}!</h2>
+    ${lgs.map(lg=>`<div class="lvl-logro"><span class="m" style="background:${lg.color}">${I[lg.icon]}</span><span><b>Logro: ${esc(lg.name)}</b><small>${esc(lg.desc)} · +1 nivel</small></span></div>`).join('')}
     <p class="sub">${f?`Desbloqueó un fondo nuevo para su perfil: <b>${esc(f.name)}</b>.`:'Sigue paseando para desbloquear más fondos.'}</p>
     ${f?`<div class="lvl-prev" style="background:${fondoPreview(f)}"><img src="${avatarSrc(S.dog)}" alt=""></div>`:''}
     <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" data-close>Genial</button>${f?'<button class="btn btn-orange" id="lvlSee">Ver fondos</button>':''}</div></div>`);
@@ -1326,7 +1349,7 @@ function openCustomize(tab,rerender){
   if(tab)cuDraft.tab=tab;
   const t=cuDraft.tab;
   const avPrev=cuDraft.useIlu?`<span class="cu-av" style="background-image:url('${ASSETS['ilu-'+cuDraft.ilu]}'),url('${ASSETS['fondo-'+cuDraft.fondo]}')"></span>`:`<span class="cu-av photo"><img src="${avatarSrc(d)}" alt=""></span>`;
-  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-orange" style="width:56px;height:56px;border-radius:18px">${I.star}</span><div><h2>Personalizar a ${esc(d.name)}</h2><p class="sub">NV ${lv.level} · ${nf0.format(lv.xp)} XP · faltan ${nf0.format(lv.toNext)} para NV ${lv.level+1}</p></div></div>
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-orange" style="width:56px;height:56px;border-radius:18px">${I.star}</span><div><h2>Personalizar a ${esc(d.name)}</h2><p class="sub">NV ${lv.level} · ${nf0.format(lv.paseos)} ${lv.paseos===1?'paseo':'paseos'} · ${lv.toNext===1?'falta 1 paseo':'faltan '+lv.toNext+' paseos'} para NV ${lv.level+1}</p></div></div>
     <div class="seg cu-tabs"><button type="button" data-cutab="avatar" class="${t==='avatar'?'on':''}">Avatar</button><button type="button" data-cutab="fondos" class="${t==='fondos'?'on':''}">Fondo del perfil</button></div>
     ${t==='avatar'?`
       <div class="cu-preview">${avPrev}</div>
@@ -1338,7 +1361,7 @@ function openCustomize(tab,rerender){
       <p class="hint" style="margin-top:10px">También puedes usar una foto: ábrela en el álbum y toca «Usar como foto de perfil».</p>`:`
       <button type="button" class="cu-auto ${cuDraft.fondoPerfil==='auto'?'on':''}" data-cu-perfil="auto"><span class="cu-tile" style="background:${fondoPreview(fondoActual(Object.assign({},d,{fondo:null})))}"></span><span><b>Automático</b><small>Cambia solo cada vez que ${esc(d.name)} desbloquea uno nuevo</small></span>${cuDraft.fondoPerfil==='auto'?I.check:''}</button>
       <div class="cu-fondos">${FONDOS.map(f=>{const ok=f.lvl<=lv.level;return `<button type="button" class="cu-fondo ${ok?'':'locked'} ${cuDraft.fondoPerfil===f.id?'on':''}" ${ok?`data-cu-perfil="${f.id}"`:`data-cu-locked="${f.lvl}"`}><span class="cu-tile fx-${f.fx}" style="background:${fondoPreview(f)}">${ok?'':`<em>${I.lock}NV ${f.lvl}</em>`}</span><b>${esc(f.name)}</b><small>${ok?FX_LABEL[f.fx]:'Se desbloquea en NV '+f.lvl}</small></button>`;}).join('')}</div>
-      <p class="hint" style="margin-top:10px">Ganas 1 XP por minuto de paseo y 10 XP por km. El nivel queda guardado para siempre, aunque reinicies las estadísticas.</p>`}
+      <p class="hint" style="margin-top:10px">Sube de nivel paseando: cada paseo cuenta y cada logro regala 1 nivel. El nivel queda guardado para siempre, aunque reinicies las estadísticas.</p>`}
     <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-orange" id="cuSave">Guardar</button></div>`,{cls:rerender?'no-anim':'',onClose:()=>{cuDraft=null;}});
   if(rerender)sh.scrollTop=prevScroll;
   $$('[data-cutab]',sh).forEach(b=>b.onclick=()=>{cuDraft.tab=b.dataset.cutab;openCustomize(null,false);});
@@ -1365,12 +1388,13 @@ const famErr=e=>{const m=(e&&e.message)||'';if(/function|schema cache|does not e
 const fmtCode=c=>String(c||'').toUpperCase().replace(/^(.{3})(.{3})$/,'$1-$2');
 async function loadFamily(dogId){
   if(S.mode!=='cloud')return;
-  try{const m=await DB.familia(dogId);if(!S.dog||S.dog.id!==dogId)return;S.fam={dogId,members:m||[],ok:true};}
+  try{const m=await DB.familia(dogId);(m||[]).forEach(x=>{S.people[x.user_id]=(x.nombre||x.correo||'Alguien').split(/[\s@]/)[0];});if(!S.dog||S.dog.id!==dogId)return;S.fam={dogId,members:m||[],ok:true};
+    if((m||[]).length>1){famCatchUp();if(IS_APP&&!LS.get('salchi.famPerm')){LS.set('salchi.famPerm',1);notifAllowed();}}}
   catch(e){S.fam={dogId,members:[],ok:false,err:famErr(e)};}
   if(S.view==='ajustes')renderFamilyCard();
   if(S.view==='stats'||S.view==='rutas')renderAll();
 }
-const famNames=()=>{const o={};((S.fam&&S.fam.dogId===(S.dog&&S.dog.id)&&S.fam.members)||[]).forEach(m=>{o[m.user_id]=(m.nombre||m.correo||'Alguien').split(' ')[0];});return o;};
+const famNames=()=>{const o={};((S.fam&&S.fam.dogId===(S.dog&&S.dog.id)&&S.fam.members)||[]).forEach(m=>{o[m.user_id]=(m.nombre||m.correo||'Alguien').split(/[\s@]/)[0];});return o;};
 const isOwner=d=>S.mode!=='cloud'||!d||!d.ownerId||d.ownerId===S.user.id;
 function renderFamilyCard(){
   const box=$('#famList');if(!box||!S.dog)return;const f=S.fam;
@@ -1401,7 +1425,7 @@ function famJoin(){
   inp.oninput=()=>{const v=inp.value.toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6);const f=v.length>3?v.slice(0,3)+'-'+v.slice(3):v;if(f!==inp.value)inp.value=f;};
   const doJoin=async()=>{const code=inp.value.replace(/[^A-Z0-9]/gi,'').toUpperCase();if(code.length!==6){toast('El código tiene 6 letras o números');inp.focus();return;}
     const b=$('#famJoinGo',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
-    try{const id=await DB.unirme(code);S.dogs=await DB.listDogs();await selectDog(id);closeSheet(true);show('main');go('perfil');renderAll();toast(`¡Ahora eres parte de la familia de ${S.dog.name}!`,3800);scheduleReminders(true);}
+    try{const id=await DB.unirme(code);S.dogs=await DB.listDogs();await selectDog(id);closeSheet(true);show('main');go('perfil');renderAll();toast(`¡Ahora eres parte de la familia de ${S.dog.name}!`,3800);scheduleReminders(true);famSubscribe();}
     catch(e){b.disabled=false;b.textContent='Unirme';toast(famErr(e),4500);}};
   $('#famJoinGo',sh).onclick=doJoin;inp.onkeydown=e=>{if(e.key==='Enter')doJoin();};
 }
@@ -1414,12 +1438,73 @@ function famLeave(userId){
       else{await loadFamily(d.id);toast('Listo');}}
     catch(e){toast(famErr(e),4500);}});
 }
-let lastRefresh=0;
-async function refreshShared(){
-  if(S.mode!=='cloud'||!S.dog||W.active||Date.now()-lastRefresh<45000)return;lastRefresh=Date.now();
-  try{const [dogs,walks]=await Promise.all([DB.listDogs(),DB.listWalks(S.dog.id)]);const id=S.dog.id;S.dogs=dogs;S.dog=dogs.find(x=>x.id===id)||S.dog;S.walks=walks;
-    await ensureAvatars(S.dogs);renderAll();loadFamily(S.dog.id);}catch(e){}
+/* ---------- Avisos de la familia: cuando otro integrante pasea al perro ---------- */
+S.people={};
+let famChannel=null,famKey='';
+function famSubscribe(){
+  if(S.mode!=='cloud'||!sb||typeof sb.channel!=='function'||!S.user)return;
+  const ids=S.dogs.map(d=>d.id).sort(),key=ids.join(',');if(!ids.length||key===famKey)return;
+  famUnsubscribe();famKey=key;
+  try{famChannel=sb.channel('familia-'+S.user.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'walks',filter:`dog_id=in.(${ids.join(',')})`},p=>onFamilyWalk(p&&p.new)).subscribe();}catch(e){console.warn('realtime',e);}
 }
+function famUnsubscribe(){if(famChannel&&sb){try{sb.removeChannel(famChannel);}catch(e){}}famChannel=null;famKey='';}
+const quienPaseo=uid=>S.people[uid]||'Alguien de la familia';
+function famSeenMark(w){const end=w.start+(w.duration||0)*1000,k=lsKey('famSeen');if(end>(LS.get(k)||0))LS.set(k,end);}
+function onFamilyWalk(r){
+  if(!r||!S.user||r.user_id===S.user.id)return;
+  const w=toWalk(r);w.points=Array.isArray(r.points)?r.points:null;
+  const dog=S.dogs.find(d=>d.id===w.dogId);if(!dog)return;
+  if(S.dog&&S.dog.id===dog.id&&!S.walks.some(x=>x.id===w.id)){S.walks.push(w);S.walks.sort((a,b)=>b.start-a.start);}
+  famSeenMark(w);avisarPaseoFamilia(w,dog);refreshShared(true);
+}
+function avisarPaseoFamilia(w,dog,extra){
+  const t=`${quienPaseo(w.by)} paseó a ${dog.name}`,b=`${fmtDur(w.duration)} · ${fmtKm(w.distance,2)}${extra?' · '+extra:''}`;
+  if(IS_APP&&NAT&&document.visibilityState==='hidden'){NAT.programarAviso(t,b+'. Toca para ver su ruta.',1,{datos:{tipo:'familia',walkId:w.id,dogId:dog.id}}).catch(()=>{});}
+  showFamBanner(w,dog,t,b);
+}
+function showFamBanner(w,dog,t,b){
+  let el=$('#famBanner');if(!el){el=document.createElement('div');el.id='famBanner';el.className='fam-banner';document.body.appendChild(el);}
+  el.innerHTML=`<img src="${avatarSrc(dog)}" alt=""><div><b>${esc(t)}</b><small>${esc(b)}</small></div><span class="fb-btn">Ver ruta</span>`;
+  requestAnimationFrame(()=>el.classList.add('on'));clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),9000);
+  el.onclick=()=>{el.classList.remove('on');openWalkFromFamily(w.id,dog.id,w);};
+}
+async function openWalkFromFamily(walkId,dogId,w){
+  if(S.dog&&S.dog.id!==dogId&&S.dogs.some(d=>d.id===dogId)){try{await selectDog(dogId);renderAll();}catch(e){}}
+  const ww=S.walks.find(x=>x.id===walkId)||w;if(ww){closeSheet(true);openWalkView(ww);}
+}
+function famCatchUp(){
+  if(S.mode!=='cloud'||!S.dog||!S.user||W.active)return;
+  const k=lsKey('famSeen'),seen=LS.get(k);
+  if(seen==null){LS.set(k,Date.now());return;}
+  const nuevos=S.walks.filter(w=>w.by&&w.by!==S.user.id&&w.start+(w.duration||0)*1000>seen).sort((a,b)=>b.start-a.start);
+  if(!nuevos.length)return;nuevos.forEach(famSeenMark);
+  const w=nuevos[0];avisarPaseoFamilia(w,S.dog,nuevos.length>1?`y ${nuevos.length-1} más`:relDay(w.start));
+}
+async function openWalkView(w){
+  const r=routeById(w.routeId),me=S.user&&S.user.id,who=w.by&&me&&w.by!==me?quienPaseo(w.by):(Object.keys(S.people).length>1?'Tú':'');
+  const sh=openSheet(`<div class="sheet-head"><div style="min-width:0"><h2 style="font-size:24px">${esc(r?r.name:'Paseo libre')}</h2><p class="sub">${who?esc(who)+' · ':''}${relDay(w.start)} · ${timeOf(w.start)}</p></div><button class="icon-btn sheet-x" data-close aria-label="Cerrar">${I.x}</button></div>
+    <div class="route-map" id="walkMap"></div>
+    <div class="rstats"><div><b>${fmtDur(w.duration)}</b><span>tiempo</span></div><div><b>${fmtKm(w.distance,2)}</b><span>distancia</span></div><div><b>${fmtPace(w.distance,w.duration)}</b><span>ritmo por km</span></div></div>
+    ${w.pee||w.poop?`<div class="walk-flags">${w.pee?`<span>${I.pee}Hizo pipí</span>`:''}${w.poop?`<span>${I.poop}Hizo caca</span>`:''}</div>`:''}`);
+  $('[data-close]',sh).onclick=()=>closeSheet();
+  let pts=Array.isArray(w.points)&&w.points.length>1?w.points:null;
+  if(!pts&&S.mode==='cloud'){try{const {data}=await sb.from('walks').select('points').eq('id',w.id).single();if(data&&Array.isArray(data.points))pts=data.points;}catch(e){}}
+  if(!pts||pts.length<2)pts=walkPts(w);
+  const box=$('#walkMap');if(!box||!box.isConnected)return;
+  if(!pts||pts.length<2){box.style.height='auto';box.innerHTML='<p class="muted" style="padding:28px 20px;text-align:center;font-weight:700">Este paseo no tiene recorrido GPS.</p>';return;}
+  if(!window.L){box.innerHTML=routeSVG(pts,{w:440,h:300,bg:'#18B05A'});return;}
+  setTimeout(()=>{if(!box.isConnected)return;const m=L.map(box,{zoomControl:true,scrollWheelZoom:false});tiles().addTo(m);
+    L.polyline(pts,{color:'#fff',weight:12,lineCap:'round',lineJoin:'round'}).addTo(m);L.polyline(pts,{color:'#FF6B1A',weight:6,lineCap:'round',lineJoin:'round'}).addTo(m);
+    L.marker(pts[0],{icon:startIcon(),interactive:false}).addTo(m);m.fitBounds(L.latLngBounds(pts),{padding:[30,30]});},80);
+}
+let lastRefresh=0;
+async function refreshShared(force){
+  if(S.mode!=='cloud'||!S.dog||W.active||(!force&&Date.now()-lastRefresh<45000))return;lastRefresh=Date.now();
+  const firma=(dogs,walks)=>JSON.stringify([dogs.map(d=>[d.id,d.name,d.paseos,d.xp,d.avatarPath,d.fondo,(d.logros||[]).length,d.goalMin,d.breed,d.weight]),walks.map(w=>w.id)]);
+  try{const antes=firma(S.dogs,S.walks);const [dogs,walks]=await Promise.all([DB.listDogs(),DB.listWalks(S.dog.id)]);const id=S.dog.id;S.dogs=dogs;S.dog=dogs.find(x=>x.id===id)||S.dog;S.walks=walks;
+    await ensureAvatars(S.dogs);if(force||firma(dogs,walks)!==antes)renderAll();loadFamily(S.dog.id);famSubscribe();}catch(e){}
+}
+setInterval(()=>{if(document.visibilityState==='visible'&&S.fam&&(S.fam.members||[]).length>1&&$('#scr-main')&&$('#scr-main').classList.contains('on'))refreshShared();},60000);
 /* ---------- Actividad en vivo: el paseo en la pantalla bloqueada y en la isla dinámica ---------- */
 const LIVE=IS_APP&&NAT&&NAT.actividad?NAT.actividad:null;
 const liveAct={on:false,last:0,frame:0};
@@ -1439,7 +1524,7 @@ async function testNotif(){
   if(!(await notifAllowed())){toast('Activa las notificaciones de SalchiPaseo en Ajustes del iPhone.',4500);return;}
   try{await NAT.programarAviso('Aviso de prueba',`Si ves esto, los avisos de SalchiPaseo funcionan. ${S.dog?S.dog.name:'Tu perro'} lo aprueba.`,60,{datos:{tipo:'test'}});toast('Listo: el aviso llega en 1 minuto. Puedes cerrar la app.',4000);}catch(e){toast('No se pudo programar el aviso');}
 }
-if(NAT&&IS_APP){try{NAT.alTocarAviso(n=>{const t=n&&n.extra&&n.extra.tipo;if(!S.dog)return;if(t==='walk'&&!W.active){closeSheet(true);go('perfil');openStartSheet();}else if(t==='min'&&W.active){$('#live').hidden=false;}});}catch(e){}}
+if(NAT&&IS_APP){try{NAT.alTocarAviso(n=>{const t=n&&n.extra&&n.extra.tipo;if(!S.dog)return;if(t==='familia'&&n.extra.walkId){openWalkFromFamily(n.extra.walkId,n.extra.dogId);}else if(t==='walk'&&!W.active){closeSheet(true);go('perfil');openStartSheet();}else if(t==='min'&&W.active){$('#live').hidden=false;}});}catch(e){}}
 
 /* =========================================================
    LOGIN CON CORREO + CONTRASEÑA (funciona dentro de la app, sin SMTP propio)
@@ -1548,12 +1633,13 @@ function openOtpCode(email){
    ========================================================= */
 function armDelete(btn,fn){if(btn.classList.contains('armed')){fn();return;}btn.classList.add('armed');toast('Toca de nuevo para eliminar');setTimeout(()=>btn.classList.remove('armed'),3000);}
 document.addEventListener('click',async e=>{
-  const t=e.target.closest('button,[data-go],[data-action],[data-medal]');if(!t)return;
+  const t=e.target.closest('button,[data-go],[data-action],[data-medal],[data-walk-view]');if(!t)return;
+  if(t.dataset.walkView){const w=S.walks.find(x=>x.id===t.dataset.walkView);if(w)openWalkView(w);return;}
   if(t.closest('#lightbox'))return;
   if(t.hasAttribute('data-close')&&t.closest('.sheet')&&!t.id){closeSheet();return;}
   if(t.dataset.go){closeSheet(true);go(t.dataset.go);return;}
   if(t.dataset.photo){openLightbox(t.dataset.photo);return;}
-  if(t.dataset.medal){const m=MEDALS[+t.dataset.medal];toast(`${m.name}: ${m.desc}${m.test(medalStats())?' ✓':''}`);return;}
+  if(t.dataset.medal){const m=MEDALS[+t.dataset.medal];toast(`${m.name}: ${m.desc}${medalOk(m)?' ✓ (+1 nivel)':' · regala 1 nivel'}`);return;}
   const a=t.dataset.action;
   if(a==='start-sheet'){openStartSheet();return;}
   if(a==='start-free'){startWalk('gps');return;}
@@ -1563,8 +1649,9 @@ document.addEventListener('click',async e=>{
   if(a==='edit-goals'){closeSheet(true);openGoalsSheet();return;}
   if(a==='rem-toggle'){setReminders({on:!remState().on});return;}
   if(a==='rem-others'){setReminders({others:!remState().others});return;}
-  if(a==='reset-stats'){confirmResetStats();return;}
+  if(a==='reset-stats'){closeSheet(true);confirmResetStats();return;}
   if(a==='customize'){closeSheet(true);openCustomize('avatar');return;}
+  if(a==='customize-fondos'){closeSheet(true);openCustomize('fondos');return;}
   if(a==='fam-invite'){famInvite();return;}
   if(a==='fam-join'){closeSheet(true);famJoin();return;}
   if(a==='fam-leave'){famLeave();return;}
@@ -1578,6 +1665,7 @@ document.addEventListener('click',async e=>{
   if(a==='to-login'){resetToLogin();return;}
   if(a==='logout'){logout();return;}
   if(a==='wipe'){confirmSheet('¿Borrar todos tus datos?','Se eliminan para siempre tus perros, rutas y paseos. Esta acción no se puede deshacer.','Borrar todo',async()=>{await DB.wipe();S.dogs=[];S.walks=[];S.routes=[];openOnboarding('first');toast('Datos borrados');});return;}
+  if(t.dataset.ptab){setPtab(t.dataset.ptab);return;}
   if(t.dataset.famRemove){famLeave(t.dataset.famRemove);return;}
   if(t.dataset.remBefore!=null){setReminders({before:+t.dataset.remBefore});return;}
   if(t.dataset.switchDog){closeSheet(true);if(t.dataset.switchDog!==S.dog.id){try{await selectDog(t.dataset.switchDog);renderAll();scheduleReminders(true);toast(`Ahora con ${S.dog.name}`);}catch(err){toast('No se pudo cargar. Revisa tu conexión.');}}return;}
@@ -1625,7 +1713,7 @@ function enterDemo(){
   S.mode='demo';S.user={name:'Invitado'};makeDemo();
   S.dogs=MEM.dogs.slice();selectDog(S.dogs[0].id).then(()=>{show('main');go('perfil');renderAll();makeDemoPhotos().then(async()=>{S.photos=await DB.listPhotos(S.dog.id);renderAll();});});
 }
-function resetToLogin(){closeSheet(true);closeLightbox();S.photos=[];S.mode=null;S.user=null;S.dog=null;S.dogs=[];S.walks=[];S.routes=[];$('#live').hidden=true;show('login');}
+function resetToLogin(){famUnsubscribe();closeSheet(true);closeLightbox();S.photos=[];S.mode=null;S.user=null;S.dog=null;S.dogs=[];S.walks=[];S.routes=[];$('#live').hidden=true;show('login');}
 async function logout(){
   if(S.mode==='cloud'&&sb){try{await sb.auth.signOut();}catch(e){}}
   resetToLogin();
@@ -1639,7 +1727,7 @@ async function enterCloud(user){
   try{
     S.dogs=await DB.listDogs();
     if(!S.dogs.length){openOnboarding('first');}
-    else{await selectDog(LS.get(lsKey('lastDog'))||S.dogs[0].id);show('main');go('perfil');renderAll();setTimeout(async()=>{flushQueue();await checkLiveBackup();scheduleReminders(false);liveCleanup();setTimeout(maybeAskReminders,1200);},400);}
+    else{await selectDog(LS.get(lsKey('lastDog'))||S.dogs[0].id);show('main');go('perfil');renderAll();setTimeout(async()=>{flushQueue();await checkLiveBackup();scheduleReminders(false);liveCleanup();famSubscribe();setTimeout(maybeAskReminders,1200);},400);}
   }catch(e){console.error(e);S.user=null;show('login');toast('No pudimos cargar tus datos: '+(e.message||'error de conexión'),5000);}
   entering=false;
 }

@@ -680,3 +680,70 @@ button.pg-hptxt svg{width:15px;height:15px;color:#B9C3C6}
 .fam-li>span:nth-child(2){flex:1;min-width:0}
 .fam-code{font-family:var(--f-display);font-size:44px;font-weight:600;letter-spacing:.12em;text-align:center;background:#FFF6EA;border:2.5px dashed var(--orange);border-radius:20px;padding:16px 8px;margin:6px 0 8px;color:var(--ink)}
 .history .by{color:var(--blue);font-weight:800}
+
+/* =========================================================
+   v9 · nivel por paseos, Progreso, avisos de la familia
+   ========================================================= */
+/* Perfil: cuánto falta para el siguiente nivel */
+.pg-next{display:block;width:100%;text-align:left;margin-top:16px;padding:14px 16px 12px;border:0;border-radius:22px;background:#fff;box-shadow:0 3px 0 var(--line);font:inherit;color:inherit}
+.pg-next:active{transform:translateY(1px);box-shadow:0 2px 0 var(--line)}
+.pg-next-top{display:flex;align-items:center;gap:10px}
+.pg-next-top b{flex:none;font-family:var(--f-display);font-weight:600;font-size:15px;background:var(--ink);color:#fff;border-radius:999px;padding:4px 11px;letter-spacing:.02em}
+.pg-next-top span{font-family:var(--f-display);font-weight:600;font-size:17px;line-height:1.15;min-width:0}
+.pg-next-bar{display:block;height:12px;border-radius:999px;background:var(--yellow-3);margin-top:12px;overflow:hidden}
+.pg-next-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--yellow),var(--orange));transition:width .6s cubic-bezier(.2,.8,.2,1)}
+.pg-next small{display:block;margin-top:8px;font-size:13px;font-weight:700;color:var(--ink-3)}
+
+/* Progreso: pestañas */
+.prog-tabs{margin-bottom:14px}
+.ptab{animation:ptabIn .25s ease}
+@keyframes ptabIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.ptab>.card+.card,.ptab>.card+.alert,.ptab>.alert+.card,.ptab>.alert+.alert{margin-top:14px}
+
+/* Progreso: tarjeta principal de hoy */
+.prog-hero{display:flex;align-items:center;gap:16px;background:linear-gradient(135deg,#1F5EFF 0%,#5B3DF5 100%);color:#fff;box-shadow:0 4px 0 #1544C2}
+.prog-hero .ring{position:relative;width:118px;height:118px;flex:none}
+.prog-hero .ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.prog-hero .ring circle{fill:none;stroke-width:11;stroke-linecap:round}
+.prog-hero .ring .bg{stroke:rgba(255,255,255,.2)}
+.prog-hero .ring .fg{stroke:var(--yellow);transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)}
+.prog-hero .ring>div{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1}
+.prog-hero .ring b{font-family:var(--f-display);font-weight:600;font-size:34px}
+.prog-hero .ring span{font-size:12px;font-weight:800;opacity:.85;margin-top:4px}
+.prog-facts{display:flex;flex-direction:column;gap:10px;min-width:0;flex:1}
+.prog-facts>div{display:flex;align-items:center;gap:10px;min-width:0}
+.prog-facts .ic{width:34px;height:34px;border-radius:12px}
+.prog-facts .ic svg{width:19px;height:19px}
+.prog-facts b{display:block;font-family:var(--f-display);font-weight:600;font-size:16px;line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog-facts small{display:block;font-size:12px;font-weight:700;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prog-facts>div>span:last-child{min-width:0}
+@media (max-width:360px){.prog-hero{flex-direction:column;align-items:stretch}.prog-hero .ring{margin:0 auto}}
+
+/* Subida de nivel: logro que sumó el nivel */
+.lvl-logro{display:flex;align-items:center;gap:12px;text-align:left;background:var(--yellow-3);border-radius:18px;padding:10px 12px;margin-top:14px}
+.lvl-logro+.lvl-logro{margin-top:8px}
+.lvl-logro .m{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#fff;flex:none;box-shadow:0 3px 0 rgba(0,0,0,.15)}
+.lvl-logro .m svg{width:22px;height:22px}
+.lvl-logro b{display:block;font-family:var(--f-display);font-weight:600;font-size:16px}
+.lvl-logro small{display:block;font-size:13px;font-weight:700;color:var(--ink-3)}
+
+/* Ajustes: sincronizar solo cuando hace falta */
+.sync-card{border:2.5px solid var(--orange-3)}
+.sync-card .li{border-bottom:0;padding-top:0}
+
+/* Aviso: alguien de la familia paseó al perro */
+.fam-banner{position:fixed;left:50%;top:calc(10px + var(--safe-t));z-index:120;width:min(calc(100% - 20px),calc(var(--app-w) - 20px));display:flex;align-items:center;gap:12px;background:var(--ink);color:#fff;border-radius:22px;padding:10px 12px;box-shadow:0 12px 30px rgba(30,26,29,.35);transform:translate(-50%,calc(-100% - 30px));transition:transform .45s cubic-bezier(.2,.9,.25,1.15);cursor:pointer}
+.fam-banner.on{transform:translate(-50%,0)}
+.fam-banner img{width:44px;height:44px;border-radius:50%;background:var(--yellow);object-fit:cover;flex:none}
+.fam-banner>div{flex:1;min-width:0}
+.fam-banner b{display:block;font-family:var(--f-display);font-weight:600;font-size:16px;line-height:1.15}
+.fam-banner small{display:block;font-size:13px;font-weight:700;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fam-banner .fb-btn{flex:none;background:var(--yellow);color:var(--ink);border-radius:999px;padding:8px 12px;font-weight:900;font-size:13px}
+
+/* Ver la ruta de un paseo */
+.history .hrow[data-walk-view]{cursor:pointer}
+.history .hrow[data-walk-view]:active{background:var(--cream)}
+#walkMap{height:320px;background:var(--green-3)}
+.walk-flags{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.walk-flags span{display:inline-flex;align-items:center;gap:6px;background:var(--cream);border-radius:999px;padding:7px 12px;font-weight:800;font-size:14px}
+.walk-flags svg{width:18px;height:18px}

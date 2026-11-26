@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&family=Roboto:wght@500;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="leaflet.css">
-<link rel="stylesheet" href="styles.css?v=8">
+<link rel="stylesheet" href="styles.css?v=9">
 </head>
 <body>
 <div class="desk-bg" id="deskBg" aria-hidden="true"></div>
@@ -73,7 +73,7 @@
         <div class="bokeh" id="pgBokeh"></div>
         <div class="pg-top">
           <button class="dog-switch" id="dogSwitch" aria-label="Cambiar de perro"><img alt=""><span data-bind="dogname">Goku</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg></button>
-          <div class="pg-actions"><button class="pg-gear" data-action="add-photo" aria-label="Subir foto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.4-2h4.6l1.4 2h1.8A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg></button><button class="pg-gear" data-go="ajustes" aria-label="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg></button></div>
+          <div class="pg-actions"><button class="pg-gear" data-action="add-photo" aria-label="Subir foto"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.5A2.5 2.5 0 0 1 6.5 6h1.8l1.4-2h4.6l1.4 2h1.8A2.5 2.5 0 0 1 20 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-11A2.5 2.5 0 0 1 4 17.5z"/><circle cx="12" cy="13" r="3.6"/></svg></button></div>
         </div>
         <div class="pg-lvl" id="pgLvl" role="button" tabindex="0"><span>NV</span><b id="pgLvlNum">1</b></div>
         <svg class="pg-arc" id="pgArc" viewBox="0 0 400 200" aria-hidden="true"></svg>
@@ -88,16 +88,15 @@
       <div class="vbody" id="routesBody"></div>
     </div>
 
-    <!-- ESTADÍSTICAS -->
+    <!-- PROGRESO (salud + estadísticas) -->
     <div class="view" id="v-stats">
-      <div class="vhead"><div><span class="kicker">Números con cola</span><h1>Estadísticas</h1></div></div>
-      <div class="vbody" id="statsBody"></div>
-    </div>
-
-    <!-- SALUD -->
-    <div class="view" id="v-salud">
-      <div class="vhead"><div><span class="kicker">Bienestar salchicha</span><h1>Salud</h1></div><div class="right"><button class="btn btn-white btn-sm" data-action="edit-dog">Editar perfil</button></div></div>
-      <div class="vbody" id="healthBody"></div>
+      <div class="vhead"><div><span class="kicker">Salud y estadísticas</span><h1>Progreso</h1></div><div class="right"><button class="btn btn-white btn-sm" data-action="edit-dog">Editar perfil</button></div></div>
+      <div class="vbody">
+        <div class="seg prog-tabs" role="tablist"><button type="button" data-ptab="hoy" class="on">Hoy</button><button type="button" data-ptab="numeros">Números</button><button type="button" data-ptab="cuidados">Cuidados</button></div>
+        <div id="healthBody" class="ptab" data-p="hoy"></div>
+        <div id="statsBody" class="ptab" data-p="numeros" hidden></div>
+        <div id="careBody" class="ptab" data-p="cuidados" hidden></div>
+      </div>
     </div>
 
     <!-- ÁLBUM -->
@@ -116,8 +115,8 @@
       <button data-go="perfil" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-1a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v1"/><circle cx="12" cy="8" r="4"/></svg>Perfil</button>
       <button data-go="rutas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg>Rutas</button>
       <button class="go" data-action="start-sheet" aria-label="Pasear"><span class="ball"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="6" cy="9.5" rx="2.1" ry="2.6"/><ellipse cx="10" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="14.6" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="18.4" cy="9.6" rx="2.1" ry="2.6"/><path d="M12.3 11c2.6 0 5.6 3.6 5.6 6.2 0 1.8-1.3 2.6-2.8 2.6-1.2 0-1.8-.6-2.8-.6s-1.7.6-2.9.6c-1.5 0-2.8-.8-2.8-2.6 0-2.6 3-6.2 5.7-6.2z"/></svg></span>Pasear</button>
-      <button data-go="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>Stats</button>
-      <button data-go="salud"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/></svg>Salud</button>
+      <button data-go="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/><path d="M7.5 12.5h2.5l1.3-2.3 2 4.3 1.4-2h1.8"/></svg>Progreso</button>
+      <button data-go="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Ajustes</button>
     </nav>
   </section>
 
@@ -166,11 +165,11 @@
 <div class="tooltip" id="tooltip"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="app-nativa.js?v=8"></script>
+<script src="app-nativa.js?v=9"></script>
 <script src="leaflet.js"></script>
 <script src="supabase.js"></script>
 <script src="config.js"></script>
 <script>window.SALCHI_ASSETS={"caminando": "goku-caminando-sprite.webp", "ladeando": "goku-ladeando-sprite.webp", "durmiendo": "goku-durmiendo-sprite.webp", "cara": "goku-cara.webp", "ilu-feliz": "ilu-feliz.webp", "ilu-curioso": "ilu-curioso.webp", "ilu-guino": "ilu-guino.webp", "ilu-perfil": "ilu-perfil.webp", "ilu-dormilon": "ilu-dormilon.webp", "fondo-coral": "fondo-coral.webp", "fondo-huesitos": "fondo-huesitos.webp", "fondo-huellitas": "fondo-huellitas.webp", "fondo-nubes": "fondo-nubes.webp", "fondo-noche": "fondo-noche.webp"};</script>
-<script src="app.js?v=8"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>
