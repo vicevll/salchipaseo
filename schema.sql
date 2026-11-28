@@ -501,3 +501,56 @@ create or replace view public.razas_pedidas with (security_invoker = true) as
    group by 1
    order by 2 desc, 4 desc;
 grant select on public.razas_pedidas to authenticated;
+
+
+-- =====================================================================
+--  Guau Guau · migración v11
+--  · "Eliminar mi cuenta" desde la app (lo exige Google Play)
+--    Los perros que compartes con tu familia pasan a otra persona de la familia;
+--    todo lo demás (perros propios, paseos, rutas, fotos, pedidos) se borra solo.
+--  Supabase → SQL Editor → New query → pega todo → Run.
+--  Es seguro ejecutarla más de una vez. Requiere la migración v10.
+-- =====================================================================
+
+-- Nadie cambia el dueño de un perro a mano, salvo el traspaso al eliminar una cuenta
+create or replace function public.proteger_perro() returns trigger
+language plpgsql as $$
+begin
+  if coalesce(current_setting('salchi.traspaso', true), 'off') <> 'on' then
+    new.user_id := old.user_id;
+  end if;
+  if coalesce(current_setting('salchi.xp', true), 'off') <> 'on' then
+    new.xp := old.xp;
+    new.paseos := old.paseos;
+  end if;
+  new.logros := array(select distinct x from unnest(coalesce(old.logros, '{}') || coalesce(new.logros, '{}')) as x where x is not null order by x);
+  return new;
+end $$;
+
+create or replace function public.borrar_mi_cuenta() returns void
+language plpgsql security definer set search_path = public as $$
+declare
+  yo uuid := auth.uid();
+  perro record;
+  heredero uuid;
+begin
+  if yo is null then
+    raise exception 'Necesitas iniciar sesión';
+  end if;
+  perform set_config('salchi.traspaso', 'on', true);
+  for perro in select id from public.dogs where user_id = yo loop
+    select m.user_id into heredero
+      from public.dog_members m
+     where m.dog_id = perro.id and m.user_id <> yo
+     order by m.created_at
+     limit 1;
+    if heredero is not null then
+      update public.dogs set user_id = heredero where id = perro.id;
+      update public.dog_members set role = 'owner' where dog_id = perro.id and user_id = heredero;
+    end if;
+  end loop;
+  perform set_config('salchi.traspaso', 'off', true);
+  delete from auth.users where id = yo;
+end $$;
+revoke all on function public.borrar_mi_cuenta() from public, anon;
+grant execute on function public.borrar_mi_cuenta() to authenticated;

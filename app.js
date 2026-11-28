@@ -25,7 +25,10 @@ const assetOf=(k,look)=>{look=look||curLook();return (look!=='salchicha'&&ASSETS
 const CFG=window.SALCHIPASEO_CONFIG||{};
 const CONFIG_OK=!!(CFG.SUPABASE_URL&&CFG.SUPABASE_KEY&&!/TU-PROYECTO/.test(CFG.SUPABASE_URL)&&!/PEGA_AQUI/.test(CFG.SUPABASE_KEY)&&window.supabase);
 const DEFAULT_CENTER=[-33.4395,-70.6400];
-const NAT=window.AppNativa||null,IS_APP=!!(NAT&&NAT.esApp);   // app iOS (Capacitor) vs navegador
+const NAT=window.AppNativa||null,IS_APP=!!(NAT&&NAT.esApp);   // app (Capacitor) vs navegador
+const PLAT=IS_APP?(NAT.plataforma==='android'?'android':'ios'):'web',IS_ANDROID=PLAT==='android';
+const TXT={ajustes:IS_ANDROID?'Ajustes de Android':'Ajustes del iPhone',navegador:PLAT==='android'?'Chrome':PLAT==='ios'?'Safari':'el navegador'};
+const PRIVACIDAD_URL='privacidad.html',BORRAR_URL='borrar-cuenta.html';
 const NATIVE_DIST=10;   // metros mínimos entre lecturas del GPS nativo
 const SIM_SPEED=15, DOG_STEP=0.35;
 const COLORS={orange:['#FF6B1A','#D9520A'],blue:['#1F5EFF','#1544C2'],pink:['#FF7EB6','#E0558F'],green:['#18B05A','#0E8A44'],yellow:['#FFC629','#D9A300'],ink:['#1E1A1D','#000000'],purple:['#7C5CF0','#5B3FD0']};
@@ -96,7 +99,6 @@ function fmtClock(sec){sec=Math.max(0,Math.floor(sec));const h=Math.floor(sec/36
 function fmtPace(distM,sec){if(!distM||distM<40||!sec)return '–';let p=(sec/60)/(distM/1000);if(!isFinite(p)||p>99)return '–';let mm=Math.floor(p),ss=Math.round((p-mm)*60);if(ss===60){mm++;ss=0;}return mm+':'+pad(ss);}
 const fmtHM=min=>{min=((Math.round(min)%1440)+1440)%1440;return pad(Math.floor(min/60))+':'+pad(min%60);};
 const hm2min=s=>{const [h,m]=(s||'07:30').split(':').map(Number);return (h||0)*60+(m||0);};
-const round5=x=>Math.max(5,Math.round(x/5)*5);
 const sum=(a,f)=>a.reduce((t,x)=>t+(typeof f==='function'?f(x):x[f]||0),0);
 const dayStart=d=>{const x=new Date(d);x.setHours(0,0,0,0);return x;};
 const addDays=(d,n)=>{const x=new Date(d);x.setDate(x.getDate()+n);return x;};
@@ -180,12 +182,14 @@ const DB={
   },
   async updatePhoto(p,patch){if(S.mode==='demo'){Object.assign(p,patch);return;}const row={};if('caption' in patch)row.caption=patch.caption||null;if('favorite' in patch)row.favorite=patch.favorite;if('takenAt' in patch)row.taken_at=new Date(patch.takenAt).toISOString();chk(await sb.from('photos').update(row).eq('id',p.id));Object.assign(p,patch);},
   async deletePhoto(p){if(S.mode==='demo'){MEM.photos=MEM.photos.filter(x=>x.id!==p.id);return;}await sb.storage.from(BUCKET).remove([p.path,p.thumbPath].filter(Boolean));chk(await sb.from('photos').delete().eq('id',p.id));},
-  async wipe(){if(S.mode==='demo'){MEM.dogs=[];MEM.walks=[];MEM.routes=[];MEM.photos=[];return;}
+  async borrarCuenta(){
     const me=S.user.id;
-    try{const ph=chk(await sb.from('photos').select('path,thumb_path').eq('user_id',me));const paths=ph.flatMap(p=>[p.path,p.thumb_path]).filter(Boolean);for(let i=0;i<paths.length;i+=100)await sb.storage.from(BUCKET).remove(paths.slice(i,i+100));chk(await sb.from('photos').delete().eq('user_id',me));}catch(e){console.warn(e);}
-    chk(await sb.from('walks').delete().eq('user_id',me));chk(await sb.from('routes').delete().eq('user_id',me));
-    try{await sb.from('dog_members').delete().eq('user_id',me);}catch(e){}
-    chk(await sb.from('dogs').delete().eq('user_id',me));}
+    // 1) fotos: se borran los archivos con la API de Storage (la base de datos borra el resto sola)
+    const ph=chk(await sb.from('photos').select('path,thumb_path').eq('user_id',me));const paths=ph.flatMap(p=>[p.path,p.thumb_path]).filter(Boolean);
+    for(let i=0;i<paths.length;i+=100)await sb.storage.from(BUCKET).remove(paths.slice(i,i+100));
+    // 2) la cuenta: sus perros pasan a otra persona de la familia (si hay) y todo lo demás se borra
+    chk(await sb.rpc('borrar_mi_cuenta'));
+  }
 };
 
 /* ---------- cola offline (modo nube) ---------- */
@@ -237,7 +241,6 @@ function makeDemo(){
 function ageMonths(d=S.dog){if(!d||!d.birthDate)return 48;const b=new Date(d.birthDate+'T12:00:00'),n=new Date();let m=(n.getFullYear()-b.getFullYear())*12+(n.getMonth()-b.getMonth());if(n.getDate()<b.getDate())m--;return Math.max(0,m);}
 function ageLabel(d=S.dog){const m=ageMonths(d);if(m<12)return m+(m===1?' mes':' meses');const y=Math.floor(m/12);return y+(y===1?' año':' años');}
 function stage(){const m=ageMonths();if(m<12)return 'puppy';if(m>=(lookDe(S.dog)==='salchicha'?108:96))return 'senior';return 'adult';}
-const STAGE_LABEL={puppy:'cachorro',adult:'adulto',senior:'senior'};
 const overweight=()=>S.dog.weight>S.dog.ideal*1.1;
 const underweight=()=>S.dog.weight<S.dog.ideal*0.9;
 function walkRec(){
@@ -259,8 +262,6 @@ const todayMin=()=>sum(walksToday(),'duration')/60;
 function daysSeries(n){const out=[];const t0=dayStart(new Date());for(let i=n-1;i>=0;i--){const d=addDays(t0,-i);const ws=walksBetween(d.getTime(),addDays(d,1).getTime());out.push({date:d,min:sum(ws,'duration')/60,dist:sum(ws,'distance'),count:ws.length});}return out;}
 function firstWalkDay(){if(!S.walks.length)return null;return dayStart(Math.min(...S.walks.map(w=>w.start)));}
 function avgDaily(n=14){const first=firstWalkDay();if(!first)return {min:0,dist:0,days:0};const days=daysSeries(n+1).slice(0,-1).filter(d=>d.date>=first);if(!days.length){const t=daysSeries(1)[0];return {min:t.min,dist:t.dist,days:1};}return {min:sum(days,'min')/days.length,dist:sum(days,'dist')/days.length,days:days.length};}
-function activityLevel(){const a=S.dog.activity;if(a!=='auto')return a;if(!S.walks.length)return 'normal';const r=avgDaily(14).min/walkRec().total;return r<0.6?'low':r>1.25?'high':'normal';}
-const ACT_LABEL={low:'baja',normal:'normal',high:'alta'};
 const dayGoal=()=>S.dog.goalMin||walkRec().total;
 const RTYPES={walk:{label:'Paseo',color:'#18B05A',icon:'walk'},rest:{label:'Siesta',color:'#1F5EFF',icon:'moon'},meds:{label:'Remedio',color:'#E0558F',icon:'pill'},play:{label:'Juego',color:'#7C5CF0',icon:'ball'},groom:{label:'Aseo',color:'#19C3A6',icon:'bath'},other:{label:'Otro',color:'#7B7176',icon:'star'}};
 const rtype=t=>RTYPES[t]||RTYPES.other;
@@ -716,7 +717,7 @@ function renderSettings(){
   const avatar=u.avatar?`<img src="${esc(u.avatar)}" alt="" referrerpolicy="no-referrer">`:`<span class="ph">${esc((u.name||'?').charAt(0).toUpperCase())}</span>`;
   $('#settingsBody').innerHTML=`
     <div class="card"><div class="acct">${avatar}<div style="min-width:0"><b>${esc(u.name||'Invitado')}</b><small>${S.mode==='demo'?'Modo demo · sin cuenta':esc(u.email||'')}</small></div></div>
-      ${S.mode==='cloud'?`<div class="list" style="margin-top:12px"><button class="li" data-action="set-password"><span class="ic ic-orange">${I.lock}</span><span>Contraseña para la app<small>${IS_APP?'Cámbiala cuando quieras':'Para entrar en la app de iPhone con tu correo'}</small></span><span class="chev">${I.chev}</span></button></div>`:''}
+      ${S.mode==='cloud'?`<div class="list" style="margin-top:12px"><button class="li" data-action="set-password"><span class="ic ic-orange">${I.lock}</span><span>Contraseña para la app<small>${IS_APP?'Cámbiala cuando quieras':'Para entrar en la app del teléfono con tu correo'}</small></span><span class="chev">${I.chev}</span></button></div>`:''}
       ${S.mode==='demo'?(IS_APP?`<button class="btn btn-orange btn-block" style="margin-top:14px" data-action="to-login">Iniciar sesión</button>`:`<button class="btn-google" style="margin-top:14px" data-action="to-login">${$('#googleBtn svg').outerHTML}Iniciar sesión con Google</button>`):''}</div>
     <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.paw}</span><h3>Mis perros</h3></div><div class="list">
       ${S.dogs.map(d=>`<button class="li ${d.id===S.dog.id?'on':''}" data-switch-dog="${d.id}"><img src="${avatarSrc(d)}" alt=""><span>${esc(d.name)}<small>${ageLabel(d)} · ${nf1.format(d.weight)} kg${S.mode==='cloud'&&!isOwner(d)?' · familia':''}</small></span><span class="chev">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
@@ -736,15 +737,15 @@ function renderSettings(){
       ${st.on?`<div class="li static"><span class="ic ic-yellow">${I.clock}</span><span>Avisarme<div class="st-chips rem-chips">${REM_BEFORE.map(m=>`<button type="button" class="st-chip ${st.before===m?'on':''}" data-rem-before="${m}">${m?m+' min antes':'A la hora'}</button>`).join('')}</div></span></div>
       <button class="li" data-action="rem-others" role="switch" aria-checked="${st.others}"><span class="ic ic-pink">${I.pill}</span><span>También los remedios<small>Según la rutina de ${esc(S.dog.name)}</small></span><span class="toggle ${st.others?'on':''}"><i></i></span></button>`:''}`:''}
       <button class="li" data-action="test-notif"><span class="ic ic-blue">${I.bell}</span><span>Probar un aviso<small>Llega en 1 minuto, aunque cierres la app</small></span><span class="chev">${I.chev}</span></button>
-      </div><p class="hint" style="margin-top:8px">Los horarios salen de <b>Rutina y horarios</b>: si los cambias, los avisos se actualizan solos. Durante el paseo verás el tiempo en la pantalla bloqueada y te avisamos cuando se cumpla el mínimo.</p></div>`;})():''}
-    <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.phone}</span><h3>${IS_APP?'App de iPhone':'Úsala como app'}</h3></div>
-      <p style="font-weight:600;color:var(--ink-2);font-size:14.5px">${IS_APP?'Estás usando la app: el GPS sigue grabando con la pantalla bloqueada (verás un indicador azul arriba). Si iOS cierra la app durante un paseo, al abrirla lo retomamos.':'<b>iPhone:</b> en Safari toca Compartir → «Agregar a inicio».<br><b>Android:</b> en Chrome toca ⋮ → «Instalar app» o «Agregar a la pantalla principal».<br>Durante el paseo mantén la pantalla encendida: el navegador pausa el GPS cuando el teléfono se bloquea.'}</p></div>
+      </div><p class="hint" style="margin-top:8px">Los horarios salen de <b>Rutina y horarios</b>: si los cambias, los avisos se actualizan solos. ${IS_ANDROID?'Durante el paseo verás la notificación «Ubicación activa» y te avisamos cuando se cumpla el mínimo.':'Durante el paseo verás el tiempo en la pantalla bloqueada y te avisamos cuando se cumpla el mínimo.'}</p></div>`;})():''}
+    <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.phone}</span><h3>${IS_APP?(IS_ANDROID?'App de Android':'App de iPhone'):'Úsala como app'}</h3></div>
+      <p style="font-weight:600;color:var(--ink-2);font-size:14.5px">${IS_APP?(IS_ANDROID?'Estás usando la app: el GPS sigue grabando con la pantalla apagada (verás la notificación «Ubicación activa»). Si Android cierra la app durante un paseo, al abrirla lo retomamos.':'Estás usando la app: el GPS sigue grabando con la pantalla bloqueada (verás un indicador azul arriba). Si iOS cierra la app durante un paseo, al abrirla lo retomamos.'):'<b>iPhone:</b> en Safari toca Compartir → «Agregar a inicio».<br><b>Android:</b> en Chrome toca ⋮ → «Instalar app» o «Agregar a la pantalla principal».<br>Durante el paseo mantén la pantalla encendida: el navegador pausa el GPS cuando el teléfono se bloquea.'}</p></div>
     <div class="card"><div class="list">
-      ${S.mode==='cloud'?`<button class="li danger" data-action="wipe"><span class="ic" style="background:#FDE3E1;color:var(--red)">${I.trash}</span><span>Borrar todos mis datos<small>Perros, rutas y paseos</small></span></button>`:''}
+      <button class="li" data-action="privacy"><span class="ic ic-blue">${I.lock}</span><span>Privacidad<small>Qué datos guardamos y para qué</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-action="logout"><span class="ic ic-yellow">${I.out}</span><span>${S.mode==='demo'?'Salir del modo demo':'Cerrar sesión'}</span></button></div></div>
-    <p class="disclaimer">Guau Guau · v10</p>`;
+    ${S.mode==='cloud'?`<div class="card"><div class="list"><button class="li danger" data-action="delete-account"><span class="ic" style="background:#FDE3E1;color:var(--red)">${I.trash}</span><span>Eliminar mi cuenta<small>Borra tu cuenta, perros, paseos y fotos</small></span></button></div></div>`:''}
+    <p class="disclaimer">Guau Guau · v11${IS_APP?' · '+(IS_ANDROID?'Android':'iPhone'):''}</p>`;
   bindAssets($('#settingsBody'));
-  const imp=$('#importFile');if(imp)imp.onchange=importFile;
   if(S.mode==='cloud'){renderFamilyCard();if(!S.fam||S.fam.dogId!==S.dog.id)loadFamily(S.dog.id);}
 }
 
@@ -759,13 +760,11 @@ function dogFormHTML(d,opts){
     <div class="field"><label for="fWeight">Peso actual (kg)</label><input class="input" id="fWeight" type="number" inputmode="decimal" min="0.5" max="90" step="0.1" value="${d.weight}"></div>
     <div class="field"><label for="fIdeal">Peso ideal (kg)</label><input class="input" id="fIdeal" type="number" inputmode="decimal" min="0.5" max="90" step="0.1" value="${d.ideal}"></div>
     <div class="field full" data-only="salchicha"><span class="flabel">Tamaño</span><div class="seg" data-seg="size"><button type="button" data-v="mini">Miniatura</button><button type="button" data-v="std">Estándar</button></div></div>
-    <div class="field full"><span class="flabel">Esterilizado</span><div class="seg" data-seg="neutered"><button type="button" data-v="1">Sí</button><button type="button" data-v="0">No</button></div></div>
-    <div class="field full"><span class="flabel">Nivel de actividad</span><div class="seg" data-seg="activity"><button type="button" data-v="auto">Auto</button><button type="button" data-v="low">Baja</button><button type="button" data-v="normal">Normal</button><button type="button" data-v="high">Alta</button></div></div>
     <div class="field"><label for="fWake">Se despierta</label><input class="input" id="fWake" type="time" value="${esc(d.wake)}"></div>
-    <p class="hint full" style="grid-column:1/-1">«Auto» calcula la actividad según sus paseos reales.</p>`;
+`;
 }
 function mountDogForm(root,d,opts){
-  root.innerHTML=dogFormHTML(d,opts);root._seg={breed:d.breed||'salchicha',size:d.size,neutered:d.neutered?'1':'0',activity:d.activity};
+  root.innerHTML=dogFormHTML(d,opts);root._seg={breed:d.breed||'salchicha',size:d.size};
   const bn=$('#fBreedName',root);if(bn)bn.value=d.breedName||'';
   const only=()=>$$('[data-only]',root).forEach(f=>f.hidden=f.dataset.only!==root._seg.breed);
   $$('[data-seg]',root).forEach(seg=>{const k=seg.dataset.seg;const set=v=>{root._seg[k]=v;$$('button',seg).forEach(b=>b.classList.toggle('on',b.dataset.v===v));if(k==='breed')only();};set(root._seg[k]);seg.onclick=e=>{const b=e.target.closest('button');if(b)set(b.dataset.v);};});
@@ -777,7 +776,7 @@ function readDogForm(root,base){
   const weight=num('#fWeight',9,0.5,90),breed=root._seg.breed||base.breed||'salchicha';
   const bn=$('#fBreedName',root),bt=bn?bn.value.trim().replace(/\s+/g,' '):'',breedName=breed==='otra'?((bt?bt.charAt(0).toUpperCase()+bt.slice(1):'')||base.breedName||''):'';
   if(breed==='otra'&&!breedName&&bn){toast('Escribe qué raza es');bn.focus();return null;}
-  return Object.assign({},base,{name,breed,breedName,birthDate:$('#fBirth',root).value||'',weight,ideal:num('#fIdeal',weight,0.5,90),size:breed==='salchicha'?root._seg.size:'std',neutered:root._seg.neutered==='1',activity:root._seg.activity,wake:$('#fWake',root).value||'07:30'});
+  return Object.assign({},base,{name,breed,breedName,birthDate:$('#fBirth',root).value||'',weight,ideal:num('#fIdeal',weight,0.5,90),size:breed==='salchicha'?root._seg.size:'std',wake:$('#fWake',root).value||'07:30'});
 }
 let onbMode='first',onbRaza=null;
 function openOnboarding(mode){
@@ -854,30 +853,6 @@ async function selectDog(id){
 }
 
 /* =========================================================
-   Exportar / importar
-   ========================================================= */
-async function exportData(){
-  let dogs=S.dogs,walks=S.walks;
-  if(S.mode==='cloud'){try{walks=chk(await sb.from('walks').select('*').order('started_at')).map(r=>Object.assign(toWalk(r),{points:r.points}));}catch(e){toast('No se pudo exportar. Revisa tu conexión.');return;}}
-  else walks=MEM.walks;
-  const data=JSON.stringify({app:'salchipaseo',version:2,exported:new Date().toISOString(),dogs,routes:S.routes,walks});
-  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([data],{type:'application/json'}));a.download=`guauguau-respaldo-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},500);
-  toast('Respaldo descargado');
-}
-function importFile(e){
-  const f=e.target.files[0];if(!f)return;const rd=new FileReader();
-  rd.onload=async()=>{try{const d=JSON.parse(rd.result);if(!Array.isArray(d.walks)||!Array.isArray(d.routes))throw new Error('formato');
-      const idMap={};const routes=d.routes.filter(r=>r&&Array.isArray(r.points)&&r.points.length>1).map(r=>{const id=uuid();idMap[r.id]=id;return {id,name:String(r.name||'Ruta').slice(0,60),color:COLORS[r.color]?r.color:'orange',points:thin(r.points,500),distance:Math.round(r.distance||pathLen(r.points))};});
-      const walks=d.walks.filter(w=>w&&typeof w.start==='number').map(w=>({id:uuid(),dogId:S.dog.id,routeId:idMap[w.routeId]||null,start:w.start,duration:Math.round(w.duration||0),distance:Math.round(w.distance||0),points:w.points?thin(w.points,500):null,preview:thin(w.preview||w.points||[],60),pee:!!w.pee,poop:!!w.poop,mode:w.mode==='sim'?'sim':'gps'}));
-      for(const r of routes)await DB.addRoute(r);
-      for(const w of walks)await DB.addWalk(w);
-      await selectDog(S.dog.id);renderAll();toast(`Importados ${walks.length} paseos y ${routes.length} rutas para ${S.dog.name}`);
-    }catch(err){console.error(err);toast(err.message==='formato'?'Ese archivo no parece de Guau Guau':'No se pudo importar todo. Revisa tu conexión.');}
-    e.target.value='';};
-  rd.readAsText(f);
-}
-
-/* =========================================================
    Mapas
    ========================================================= */
 let liveMap=null,liveLayers=null,livePin=null,trackBg=null,trackFg=null,tailLine=null,accCircle=null;
@@ -946,9 +921,10 @@ function onTrackErr(err){
 }
 function askLocationSettings(){
   if(!IS_APP){toast('Permite la ubicación para este sitio en los ajustes del navegador.',4500);return;}
-  confirmSheet('Permite la ubicación','Para registrar el recorrido, Guau Guau necesita tu ubicación. En Ajustes toca <b>Ubicación</b> y elige <b>Siempre</b> (o "Al usar la app") para que siga grabando con la pantalla bloqueada.','Abrir Ajustes',async()=>{await NAT.abrirAjustes();},false);
+  confirmSheet('Permite la ubicación',IS_ANDROID?'Para registrar el recorrido, Guau Guau necesita tu ubicación. En Ajustes toca <b>Permisos → Ubicación</b>, elige <b>Permitir solo mientras se usa la app</b> y activa <b>Usar ubicación precisa</b>.':'Para registrar el recorrido, Guau Guau necesita tu ubicación. En Ajustes toca <b>Ubicación</b> y elige <b>Siempre</b> (o "Al usar la app") para que siga grabando con la pantalla bloqueada.','Abrir Ajustes',async()=>{await NAT.abrirAjustes();},false);
 }
 function startWalk(mode,route){
+  if(mode==='gps'&&!W.active&&!LS.get('guau.ubicOk')){avisoUbicacion(()=>startWalk(mode,route));return;}
   closeSheet(true);
   if(W.active){toast('Ya hay un paseo en curso');$('#live').hidden=false;return;}
   Object.assign(W,{active:true,paused:false,mode,elapsed:0,last:performance.now(),points:[],distance:0,route:route||null,pee:false,poop:false,started:Date.now(),follow:true,lastTs:0,gotFix:false,errShown:false,sim:null,lastBackup:0,dogId:S.dog.id,pausedMs:0,pauseStart:0,kf:null,cur:null,acc:null,lastMove:Date.now(),lastAccept:0,rejects:0,minReached:false,hiddenAt:0});
@@ -967,7 +943,7 @@ function setupLiveUI(mode,route){
   setFlag('#flagPee',W.pee);setFlag('#flagPoop',W.poop);
   const tag=$('#modeTag');tag.textContent=mode==='sim'?'Simulación':'GPS';tag.classList.toggle('sim',mode==='sim');
   $('#pocketBtn').hidden=IS_APP;
-  const tip=$('#liveTip');tip.innerHTML=IS_APP?'Puedes bloquear el teléfono: seguimos grabando. Verás un indicador azul arriba.':'No bloquees el teléfono (pausa el GPS): usa <b>Bolsillo</b>.';
+  const tip=$('#liveTip');tip.innerHTML=IS_APP?(IS_ANDROID?'Puedes apagar la pantalla: seguimos grabando. Verás la notificación «Ubicación activa».':'Puedes bloquear el teléfono: seguimos grabando. Verás un indicador azul arriba.'):'No bloquees el teléfono (pausa el GPS): usa <b>Bolsillo</b>.';
   tip.hidden=mode==='sim';const wid=W.started;setTimeout(()=>{if(W.started===wid)tip.hidden=true;},25000);
   const fn=$('#followNote');if(route){fn.hidden=false;fn.innerHTML=`${I.route}<span>Siguiendo <b>${esc(route.name)}</b> · ${fmtKm(route.distance)}</span>`;}else fn.hidden=true;
 }
@@ -1345,7 +1321,7 @@ async function scheduleReminders(force){
 async function setReminders(patch,quiet){
   if(!IS_APP)return;
   const st=Object.assign(remState(),patch,{asked:true});
-  if(st.on&&!(await notifAllowed())){st.on=false;LS.set(remKey(),st);toast('Activa las notificaciones de Guau Guau en Ajustes del iPhone.',4500);renderSettings();return;}
+  if(st.on&&!(await notifAllowed())){st.on=false;LS.set(remKey(),st);toast(`Activa las notificaciones de Guau Guau en ${TXT.ajustes}.`,4500);renderSettings();return;}
   LS.set(remKey(),st);
   await scheduleReminders(true);if(S.view==='ajustes')renderSettings();
   if(quiet)return;
@@ -1610,10 +1586,17 @@ function liveTick(force){
 async function liveEnd(){if(!liveAct.on)return;liveAct.on=false;try{await LIVE.terminar(liveState());}catch(e){}}
 async function liveCleanup(){if(!LIVE||W.active)return;try{await LIVE.terminar({inmediato:true});}catch(e){}}
 async function testNotif(){
-  if(!IS_APP){toast('Los avisos funcionan en la app de iPhone.');return;}
-  if(!(await notifAllowed())){toast('Activa las notificaciones de Guau Guau en Ajustes del iPhone.',4500);return;}
+  if(!IS_APP){toast('Los avisos funcionan en la app del teléfono.');return;}
+  if(!(await notifAllowed())){toast(`Activa las notificaciones de Guau Guau en ${TXT.ajustes}.`,4500);return;}
   try{await NAT.programarAviso('Aviso de prueba',`Si ves esto, los avisos de Guau Guau funcionan. ${S.dog?S.dog.name:'Tu perro'} lo aprueba.`,60,{datos:{tipo:'test'}});toast('Listo: el aviso llega en 1 minuto. Puedes cerrar la app.',4000);}catch(e){toast('No se pudo programar el aviso');}
 }
+if(IS_ANDROID&&NAT.alVolver){NAT.alVolver(()=>{
+  const lb=$('#lightbox');if(lb&&!lb.hidden){closeLightbox();return;}
+  if($('#layer').innerHTML.trim()){closeSheet();return;}
+  if($('#scr-onboard').classList.contains('on')&&!$('#onbStep2').hidden){renderRazaPick();return;}
+  if($('#scr-main').classList.contains('on')&&$('#live').hidden&&S.view&&S.view!=='perfil'){go('perfil');return;}
+  NAT.minimizar();
+});}
 if(NAT&&IS_APP){try{NAT.alTocarAviso(n=>{const t=n&&n.extra&&n.extra.tipo;if(!S.dog)return;if(t==='familia'&&n.extra.walkId){openWalkFromFamily(n.extra.walkId,n.extra.dogId);}else if(t==='walk'&&!W.active){closeSheet(true);go('perfil');openStartSheet();}else if(t==='min'&&W.active){$('#live').hidden=false;}});}catch(e){}}
 
 /* =========================================================
@@ -1641,7 +1624,7 @@ function openEmailSheet(prefill,mode){
     ${pwField('emPass','Contraseña',signup?'new-password':'current-password',signup?'Mínimo 8 caracteres':'Tu contraseña')}
     <button class="btn btn-orange btn-block" id="emGo" style="margin-top:14px">${signup?'Crear cuenta':'Entrar'}</button>
     <div class="row-actions" style="margin-top:12px"><button class="btn btn-ghost btn-sm" id="emSwitch">${signup?'Ya tengo cuenta':'Crear cuenta nueva'}</button>${EMAIL_CODE?'<button class="btn btn-white btn-sm" id="emCode">Usar un código</button>':''}</div>
-    ${signup?'':`<p class="hint" style="margin-top:14px"><b>¿Antes entrabas con Google?</b> Abre <b>${esc(location.host+location.pathname.replace(/\/$/,''))}</b> en Safari, entra con Google y ve a Ajustes → <b>Contraseña para la app</b>. Después entra aquí con ese correo y verás todos tus datos.</p>`}`);
+    ${signup?'':`<p class="hint" style="margin-top:14px"><b>¿Antes entrabas con Google?</b> Abre <b>${esc(location.host+location.pathname.replace(/\/$/,''))}</b> en ${TXT.navegador}, entra con Google y ve a Ajustes → <b>Contraseña para la app</b>. Después entra aquí con ese correo y verás todos tus datos.</p>`}`);
   bindEyes(sh);
   const ie=$('#emEmail',sh),ip=$('#emPass',sh);setTimeout(()=>(prefill?ip:ie).focus(),150);
   const goBtn=$('#emGo',sh),label=goBtn.textContent;
@@ -1658,14 +1641,14 @@ function openEmailSheet(prefill,mode){
     if(data&&data.session&&data.user){closeSheet(true);enterCloud(data.user);return;}
     if(data&&data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length){done();toast('Ese correo ya tiene cuenta. Si entrabas con Google, crea tu contraseña desde la web (Ajustes → Contraseña para la app).',7000);return;}
     closeSheet(true);
-    openSheet(`<h2>Confirma tu correo</h2><p class="sub" style="margin:6px 0 16px">Te enviamos un enlace a <b>${esc(email)}</b>. Ábrelo (puede abrirse en Safari, está bien) y luego vuelve aquí y entra con tu contraseña. Revisa también la carpeta de spam.</p><button class="btn btn-orange btn-block" id="emAfter">Ya lo confirmé, entrar</button>`);
+    openSheet(`<h2>Confirma tu correo</h2><p class="sub" style="margin:6px 0 16px">Te enviamos un enlace a <b>${esc(email)}</b>. Ábrelo (puede abrirse en ${TXT.navegador}, está bien) y luego vuelve aquí y entra con tu contraseña. Revisa también la carpeta de spam.</p><button class="btn btn-orange btn-block" id="emAfter">Ya lo confirmé, entrar</button>`);
     $('#emAfter').onclick=()=>{closeSheet(true);openEmailSheet(email);};};
   goBtn.onclick=go_;ip.onkeydown=e=>{if(e.key==='Enter')go_();};ie.onkeydown=e=>{if(e.key==='Enter')ip.focus();};
   $('#emSwitch',sh).onclick=()=>{const v=ie.value.trim();closeSheet(true);openEmailSheet(v,signup?'login':'signup');};
   if(EMAIL_CODE)$('#emCode',sh).onclick=()=>{const v=ie.value.trim();closeSheet(true);openOtpSheet(v);};
 }
 function openPasswordSheet(){
-  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-orange" style="width:56px;height:56px;border-radius:18px">${I.lock}</span><div><h2>Contraseña para la app</h2><p class="sub">Con ella entras en la app de iPhone usando <b>${esc((S.user&&S.user.email)||'tu correo')}</b>. Seguirás pudiendo entrar con Google en la web.</p></div></div>
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-orange" style="width:56px;height:56px;border-radius:18px">${I.lock}</span><div><h2>Contraseña para la app</h2><p class="sub">Con ella entras en la app del teléfono (iPhone o Android) usando <b>${esc((S.user&&S.user.email)||'tu correo')}</b>. Seguirás pudiendo entrar con Google en la web.</p></div></div>
     ${pwField('pwNew','Contraseña nueva','new-password','Mínimo 8 caracteres')}
     ${pwField('pwNew2','Repítela','new-password','Igual que arriba')}
     <button class="btn btn-orange btn-block" id="pwSave" style="margin-top:14px">Guardar contraseña</button>`);
@@ -1750,11 +1733,11 @@ document.addEventListener('click',async e=>{
   if(a==='set-password'){openPasswordSheet();return;}
   if(a==='edit-routine'){closeSheet(true);openRoutineEditor(true);return;}
   if(a==='add-dog'){closeSheet(true);openOnboarding('add');return;}
-  if(a==='export'){exportData();return;}
   if(a==='sync'){await flushQueue();renderSettings();if(!queueGet().length)toast('Todo sincronizado');return;}
   if(a==='to-login'){resetToLogin();return;}
   if(a==='logout'){logout();return;}
-  if(a==='wipe'){confirmSheet('¿Borrar todos tus datos?','Se eliminan para siempre tus perros, rutas y paseos. Esta acción no se puede deshacer.','Borrar todo',async()=>{await DB.wipe();S.dogs=[];S.walks=[];S.routes=[];openOnboarding('first');toast('Datos borrados');});return;}
+  if(a==='delete-account'){confirmDeleteAccount();return;}
+  if(a==='privacy'){openPrivacy();return;}
   if(t.dataset.ptab){setPtab(t.dataset.ptab);return;}
   if(t.dataset.famRemove){famLeave(t.dataset.famRemove);return;}
   if(t.dataset.remBefore!=null){setReminders({before:+t.dataset.remBefore});return;}
@@ -1802,6 +1785,35 @@ async function loginGoogle(){
 function enterDemo(){
   S.mode='demo';S.user={name:'Invitado'};makeDemo();
   S.dogs=MEM.dogs.slice();selectDog(S.dogs[0].id).then(()=>{show('main');go('perfil');renderAll();makeDemoPhotos().then(async()=>{S.photos=await DB.listPhotos(S.dog.id);renderAll();});});
+}
+function avisoUbicacion(seguir){
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-blue" style="width:56px;height:56px;border-radius:18px">${I.map}</span><div><h2>Tu ubicación en los paseos</h2><p class="sub">Antes de empezar, cómo la usamos</p></div></div>
+    <div class="tips">
+      <div class="tip"><span class="ic ic-green">${I.route}</span><div><b>Solo mientras paseas</b><p>Usamos el GPS para dibujar la ruta y medir tiempo y distancia${IS_APP?(IS_ANDROID?', también con la pantalla apagada (verás la notificación «Ubicación activa»)':', también con el teléfono bloqueado'):''}. Al terminar el paseo dejamos de usarlo.</p></div></div>
+      <div class="tip"><span class="ic ic-orange">${I.lock}</span><div><b>Se guarda en tu cuenta</b><p>La ruta queda en tu cuenta y la ve tu familia si compartes al perro. No la vendemos ni la compartimos con terceros.</p></div></div>
+    </div>
+    <p class="hint" style="margin-top:10px">${IS_APP?'A continuación tu teléfono te pedirá permiso.':'A continuación el navegador te pedirá permiso.'} <button type="button" class="link-btn" data-action="privacy">Política de privacidad</button></p>
+    <div class="row-actions" style="margin-top:14px"><button class="btn btn-ghost" data-close>Ahora no</button><button class="btn btn-orange" id="ubicOk">Continuar</button></div>`);
+  $('[data-close]',sh).onclick=()=>closeSheet();
+  $('#ubicOk',sh).onclick=()=>{LS.set('guau.ubicOk',1);closeSheet(true);seguir();};
+}
+function confirmDeleteAccount(){
+  if(W.active){toast('Termina el paseo en curso antes de eliminar tu cuenta.');return;}
+  const compartidos=S.dogs.filter(d=>isOwner(d)&&S.fam&&S.fam.dogId===d.id&&(S.fam.members||[]).length>1).length;
+  confirmSheet('¿Eliminar tu cuenta?',`Se borran para siempre tu cuenta y tus datos: perros, rutas, paseos, fotos y logros.${compartidos||S.dogs.some(d=>!isOwner(d))?' Los perros que compartes con tu familia quedan para ellos, sin los paseos que hiciste tú.':''} <b>No se puede deshacer.</b>`,'Eliminar mi cuenta',async()=>{
+    try{await DB.borrarCuenta();}
+    catch(e){console.error(e);toast(/borrar_mi_cuenta|function/i.test(e.message||'')?'Falta actualizar la base de datos (migración v11).':'No se pudo eliminar la cuenta. Revisa tu conexión e inténtalo de nuevo.',5000);return;}
+    const id=S.user.id;
+    if(IS_APP){for(const n of (remState().ids||[])){try{await NAT.cancelarAviso(n);}catch(e){}}}
+    try{Object.keys(localStorage).filter(k=>k.includes(id)).forEach(k=>localStorage.removeItem(k));}catch(e){}
+    try{await sb.auth.signOut();}catch(e){}
+    resetToLogin();toast('Tu cuenta y tus datos fueron eliminados.',4500);
+  });
+}
+function openPrivacy(){
+  const sh=openSheet(`<div class="sheet-head"><div style="min-width:0"><h2 style="font-size:24px">Privacidad</h2><p class="sub">Qué datos guarda Guau Guau y cómo borrarlos</p></div><button class="icon-btn sheet-x" data-close aria-label="Cerrar">${I.x}</button></div>
+    <iframe class="doc-frame" src="${PRIVACIDAD_URL}" title="Política de privacidad"></iframe>`);
+  $('[data-close]',sh).onclick=()=>closeSheet();
 }
 function resetToLogin(){famUnsubscribe();closeSheet(true);closeLightbox();S.photos=[];S.mode=null;S.user=null;S.dog=null;S.dogs=[];S.walks=[];S.routes=[];$('#live').hidden=true;show('login');}
 async function logout(){

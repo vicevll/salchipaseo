@@ -1,4 +1,4 @@
-/* Salchipaseo · configuración de Supabase
+/* Guau Guau · configuración de Supabase
    La publishable key es pública: está bien que vaya aquí. Nunca pongas la secret key. */
 window.SALCHIPASEO_CONFIG = {
   SUPABASE_URL: 'https://nzkksfpflrfbfvqgtbxv.supabase.co',

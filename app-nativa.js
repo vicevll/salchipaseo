@@ -1,10 +1,10 @@
 /*
- * app-nativa.js — conecta tu web con las funciones nativas de la app iOS.
+ * app-nativa.js — conecta tu web con las funciones nativas de la app (iPhone y Android).
  *
  * Cópialo a tu web e inclúyelo ANTES de tu propio código:
  *   <script src="app-nativa.js"></script>
  *
- * Dentro de la app iOS usa GPS en segundo plano y notificaciones locales reales.
+ * Dentro de la app usa GPS en segundo plano y notificaciones locales reales.
  * En un navegador normal usa las APIs web como respaldo (solo con la página abierta).
  *
  * Todo queda en window.AppNativa. Ver ejemplos en el README.
@@ -18,7 +18,22 @@
   var BG = plugins.BackgroundGeolocation;
   var LN = plugins.LocalNotifications;
   var HTTP = plugins.CapacitorHttp;
-  var LIVE = plugins.SalchiLive; // actividad en vivo (pantalla bloqueada / isla dinámica)
+  var LIVE = plugins.SalchiLive; // actividad en vivo (pantalla bloqueada / isla dinámica, solo iPhone)
+  var APP = plugins.App;         // botón "volver" de Android
+  var plataforma = esApp && typeof cap.getPlatform === "function" ? cap.getPlatform() : "web"; // "ios", "android" o "web"
+
+  /* ------------------------------------------------------------------ */
+  /* Botón "volver" de Android                                           */
+  /* ------------------------------------------------------------------ */
+  // alVolver(fn): fn se llama cada vez que tocan "volver". Si no hay fn, Android cierra la app.
+  function alVolver(fn) {
+    if (!APP || typeof APP.addListener !== "function") return;
+    APP.addListener("backButton", function () { try { fn(); } catch (e) { console.error("[AppNativa] volver:", e); } });
+  }
+  // Manda la app al fondo sin cerrarla (así un paseo en curso sigue grabando)
+  function minimizar() {
+    return APP && typeof APP.minimizeApp === "function" ? APP.minimizeApp() : Promise.resolve();
+  }
 
   /* ------------------------------------------------------------------ */
   /* Ubicación (sigue funcionando con la pantalla bloqueada en la app)   */
@@ -242,6 +257,9 @@
 
   window.AppNativa = {
     esApp: esApp,
+    plataforma: plataforma,
+    alVolver: alVolver,
+    minimizar: minimizar,
     seguirUbicacion: seguirUbicacion,
     abrirAjustes: abrirAjustes,
     pedirPermisoAvisos: pedirPermisoAvisos,
