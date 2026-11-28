@@ -554,3 +554,70 @@ begin
 end $$;
 revoke all on function public.borrar_mi_cuenta() from public, anon;
 grant execute on function public.borrar_mi_cuenta() to authenticated;
+
+
+-- =====================================================================
+--  Guau Guau · migración v12
+--  · Nueva raza: terrier chileno ("terrier")
+--  · Máximo 4 perros por cuenta (tuyos + los de familias a las que te uniste)
+--  Supabase → SQL Editor → New query → pega todo → Run.
+--  Es seguro ejecutarla más de una vez. Requiere la migración v11.
+-- =====================================================================
+
+-- Razas permitidas (se recrea la regla para sumar el terrier chileno)
+alter table public.dogs drop constraint if exists dogs_breed_check;
+alter table public.dogs add constraint dogs_breed_check
+  check (breed in ('salchicha', 'pug', 'golden', 'terrier', 'otra'));
+
+-- ¿Cuántos perros tiene una cuenta? (propios + de familia, sin repetir)
+create or replace function public.perros_de(u uuid) returns integer
+language sql stable security definer set search_path = public as $$
+  select count(*)::int from (
+    select id from public.dogs where user_id = u
+    union
+    select dog_id from public.dog_members where user_id = u
+  ) t;
+$$;
+revoke all on function public.perros_de(uuid) from public, anon;
+grant execute on function public.perros_de(uuid) to authenticated;
+
+-- Al crear un perro: máximo 4 por cuenta
+create or replace function public.limite_perros() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  perform pg_advisory_xact_lock(hashtext('perros:' || new.user_id::text));
+  if public.perros_de(new.user_id) >= 4 then
+    raise exception 'Máximo 4 perros por cuenta.' using errcode = 'P0001';
+  end if;
+  return new;
+end $$;
+drop trigger if exists dogs_limite on public.dogs;
+create trigger dogs_limite before insert on public.dogs
+  for each row execute function public.limite_perros();
+
+-- Al unirse a una familia: el perro nuevo también cuenta
+create or replace function public.unirme_a_familia(codigo text) returns uuid
+language plpgsql security definer set search_path = public as $$
+declare
+  inv public.dog_invites%rowtype;
+begin
+  if auth.uid() is null then raise exception 'Inicia sesión para unirte'; end if;
+  select * into inv from public.dog_invites where code = upper(regexp_replace(coalesce(codigo, ''), '[^A-Za-z0-9]', '', 'g'));
+  if not found then raise exception 'Ese código no existe. Revisa que esté bien escrito.'; end if;
+  if inv.expires_at < now() then raise exception 'Ese código venció. Pide uno nuevo.'; end if;
+  if inv.used_by is not null and inv.used_by <> auth.uid() then raise exception 'Ese código ya se usó. Pide uno nuevo.'; end if;
+  if exists (select 1 from public.dogs where id = inv.dog_id and user_id = auth.uid()) then return inv.dog_id; end if;
+  if not exists (select 1 from public.dog_members where dog_id = inv.dog_id and user_id = auth.uid()) then
+    perform pg_advisory_xact_lock(hashtext('perros:' || auth.uid()::text));
+    if public.perros_de(auth.uid()) >= 4 then
+      raise exception 'Ya tienes 4 perros: Máximo 4 perros por cuenta.' using errcode = 'P0001';
+    end if;
+  end if;
+  insert into public.dog_members (dog_id, user_id, role, nombre, correo)
+  values (inv.dog_id, auth.uid(), 'member',
+          coalesce(auth.jwt() -> 'user_metadata' ->> 'full_name', auth.jwt() ->> 'email'),
+          auth.jwt() ->> 'email')
+  on conflict on constraint dog_members_pkey do nothing;
+  update public.dog_invites set used_by = auth.uid(), used_at = now() where code = inv.code;
+  return inv.dog_id;
+end $$;

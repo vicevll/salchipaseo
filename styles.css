@@ -753,21 +753,19 @@ button.pg-hptxt svg{width:15px;height:15px;color:#B9C3C6}
    v10 · Guau Guau: razas (salchicha, pug, golden y "otra")
    ========================================================= */
 .logo-img{width:50px;height:50px;border-radius:15px;transform:rotate(-6deg);box-shadow:0 3px 0 rgba(30,26,29,.12)}
-/* Login: los tres perros paseando juntos */
-.walk-scene.trio .ws-dog{transform:none;bottom:16px}
-.walk-scene.trio .ws-dog.d1{width:31%;max-width:150px;left:3%}
-.walk-scene.trio .ws-dog.d2{width:24%;max-width:112px;left:36%;bottom:14px}
-.walk-scene.trio .ws-dog.d3{width:33%;max-width:158px;left:62%}
 /* Tamaños por raza donde el perro aparece solo */
 .ws-dog[data-look=pug]{width:160px}
 .ws-dog[data-look=golden]{width:190px}
+.ws-dog[data-look=terrier]{width:180px}
 .pg-dog[data-look=pug]{max-width:178px}
 .pg-dog[data-look=golden]{max-width:200px}
-.pg-dog.sleep[data-look=pug],.pg-dog.sleep[data-look=golden]{width:56%;max-width:215px;bottom:8px}
-.onb-head [data-look=pug],.onb-head [data-look=golden]{width:42%;bottom:-26px}
-.sheet-head [data-look=pug],.sheet-head [data-look=golden]{width:78px}
-.sleep-card [data-look=pug],.sleep-card [data-look=golden]{width:86%;justify-self:center;transform:translate(4px,10px)}
-.empty [data-look=pug],.empty [data-look=golden]{width:46%;max-width:180px}
+.pg-dog[data-look=terrier]{max-width:180px}
+.pg-dog.sleep[data-look=pug],.pg-dog.sleep[data-look=golden],.pg-dog.sleep[data-look=terrier]{width:56%;max-width:215px;bottom:8px}
+.onb-head [data-look=pug],.onb-head [data-look=golden],.onb-head [data-look=terrier]{width:42%;bottom:-26px}
+.onb-head [data-look=terrier]{width:39%}
+.sheet-head [data-look=pug],.sheet-head [data-look=golden],.sheet-head [data-look=terrier]{width:78px}
+.sleep-card [data-look=pug],.sleep-card [data-look=golden],.sleep-card [data-look=terrier]{width:86%;justify-self:center;transform:translate(4px,10px)}
+.empty [data-look=pug],.empty [data-look=golden],.empty [data-look=terrier]{width:46%;max-width:180px}
 
 /* Onboarding: elegir la raza */
 .raza-pick{margin-bottom:6px}
@@ -780,18 +778,42 @@ button.pg-hptxt svg{width:15px;height:15px;color:#B9C3C6}
 .rc-salchicha{background:var(--yellow-3)}
 .rc-pug{background:var(--orange-3)}
 .rc-golden{background:var(--green-3)}
+.rc-terrier{background:var(--blue-3)}
 .rc-otra{background:#fff;box-shadow:inset 0 0 0 2.5px var(--line)}
 .rc-q{display:grid;place-items:center;width:92px;height:92px;margin:16px auto 22px;border-radius:50%;background:var(--blue-3);color:var(--blue);font-family:var(--f-display);font-weight:600;font-size:52px}
+/* "No está mi perro" ocupa toda la fila, en horizontal */
+.raza-card.rc-otra{grid-column:1/-1;flex-direction:row;justify-content:flex-start;gap:14px;padding:12px 16px;text-align:left}
+.rc-otra .rc-q{width:52px;height:52px;margin:0;font-size:30px;flex:0 0 auto}
+.rc-otra b{font-size:19px}
+.rc-otra .rc-txt{display:flex;flex-direction:column;gap:2px;min-width:0}
 .raza-card.on{box-shadow:0 0 0 3px var(--ink)}
 .raza-otra{margin-top:14px;background:#fff;border-radius:22px;padding:16px;box-shadow:0 3px 0 var(--line);display:flex;flex-direction:column;gap:10px}
 .raza-otra .hint{margin:0}
 .raza-chip{display:inline-flex;align-items:center;gap:8px;border:0;background:#fff;border-radius:999px;padding:8px 14px 8px 10px;font:inherit;font-weight:800;color:var(--ink);box-shadow:0 2px 0 var(--line);margin-bottom:14px}
 .raza-chip svg{width:20px;height:20px;color:var(--orange)}
 .raza-chip small{font-size:13px;color:var(--orange);font-weight:800;margin-left:2px}
-.seg-raza button{font-size:13.5px;padding:9px 2px}
+.seg-raza{flex-wrap:wrap}
+.seg-raza button{font-size:13.5px;padding:9px 2px;flex:1 1 28%}
 .onb-head.pick{min-height:0;padding-bottom:42px}
 .onb-head.pick h1,.onb-head.pick p{max-width:none}
 
 /* v11 · privacidad y cuenta */
 .doc-frame{display:block;width:100%;height:68vh;border:0;border-radius:18px;background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
 .login .fine .link-btn{font-size:inherit;color:inherit}
+
+/* =========================================================
+   v12 · Terrier chileno, la manada y máximo 4 perros
+   ========================================================= */
+/* La manada camina junta (carga y login): de 1 a 4 perros */
+.ws-pack{position:absolute;left:0;right:0;bottom:16px;z-index:3;display:flex;justify-content:center;align-items:flex-end;padding:0 3%;pointer-events:none}
+.ws-pack .ws-dog{position:relative;left:auto;bottom:auto;transform:none;flex:0 1 auto;min-width:0;width:calc(var(--w,190px) * var(--s,1))}
+.ws-pack .ws-dog[data-look=salchicha]{--w:230px}
+.ws-pack .ws-dog[data-look=pug]{--w:165px}
+.ws-pack .ws-dog[data-look=golden]{--w:205px}
+.ws-pack .ws-dog[data-look=terrier]{--w:180px}
+.ws-pack.n2{--s:.8}
+.ws-pack.n3{--s:.64}
+.ws-pack.n4{--s:.54}
+.ws-pack .ws-dog+.ws-dog{margin-left:-1.5%}
+.ws-pack.n3 .ws-dog:nth-child(2),.ws-pack.n4 .ws-dog:nth-child(odd){margin-bottom:5px}
+.li.dim,.opt.dim{opacity:.55}

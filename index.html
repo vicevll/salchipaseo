@@ -17,7 +17,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@500;600;700;800&family=Roboto:wght@500;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="leaflet.css">
-<link rel="stylesheet" href="styles.css?v=11">
+<link rel="stylesheet" href="styles.css?v=12">
 </head>
 <body>
 <div class="desk-bg" id="deskBg" aria-hidden="true"></div>
@@ -25,7 +25,7 @@
 
   <!-- ============ CARGANDO ============ -->
   <section class="screen loading on" id="scr-loading">
-    <div class="walk-scene" data-scene><img class="ws-dog" data-asset="caminando" alt=""></div>
+    <div class="walk-scene" data-scene></div>
     <p>Cargando…</p>
   </section>
 
@@ -36,7 +36,7 @@
       <h1>Paseos <span>felices</span> para tu perro</h1>
       <p>Registra sus rutas y tiempos, mira cuánto camina cada semana y recibe consejos para su salud.</p>
     </div>
-    <div class="walk-scene trio" data-scene><img class="ws-dog d1" data-asset="caminando" data-raza="golden" alt=""><img class="ws-dog d2" data-asset="caminando" data-raza="pug" alt=""><img class="ws-dog d3" data-asset="caminando" data-raza="salchicha" alt="Una salchicha, un pug y un golden caminando por la vereda"></div>
+    <div class="walk-scene" data-scene role="img" aria-label="Un golden, un pug, un terrier chileno y una salchicha caminando por la vereda"><div class="ws-pack n4"><img class="ws-dog" data-asset="caminando" data-raza="salchicha" alt=""><img class="ws-dog" data-asset="caminando" data-raza="terrier" alt=""><img class="ws-dog" data-asset="caminando" data-raza="pug" alt=""><img class="ws-dog" data-asset="caminando" data-raza="golden" alt=""></div></div>
     <div class="login-actions">
       <div class="config-warn" id="configWarn" hidden>Falta conectar Supabase: completa <b>config.js</b> para activar el login con Google. Mientras tanto puedes probar la app sin cuenta.</div>
       <button class="btn-google" id="googleBtn"><svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>Continuar con Google</button>
@@ -116,11 +116,11 @@
     </div>
 
     <nav class="bnav" id="bnav" aria-label="Secciones">
-      <button data-go="perfil" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-1a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v1"/><circle cx="12" cy="8" r="4"/></svg>Perfil</button>
-      <button data-go="rutas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></svg>Rutas</button>
+      <button data-go="perfil" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(12 12) scale(1.059) translate(-12 -12.5)" stroke-width="2.27"><path d="M4 21v-1a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v1"/><circle cx="12" cy="8" r="4"/></g></svg>Perfil</button>
+      <button data-go="rutas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(12 12) scale(0.947) translate(-12 -12)" stroke-width="2.53"><circle cx="6" cy="19" r="2.5"/><circle cx="18" cy="5" r="2.5"/><path d="M8.5 19H16a3.5 3.5 0 0 0 0-7H8a3.5 3.5 0 0 1 0-7h7.5"/></g></svg>Rutas</button>
       <button class="go" data-action="start-sheet" aria-label="Pasear"><span class="ball"><svg viewBox="0 0 24 24" fill="currentColor"><ellipse cx="6" cy="9.5" rx="2.1" ry="2.6"/><ellipse cx="10" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="14.6" cy="5.6" rx="2.1" ry="2.7"/><ellipse cx="18.4" cy="9.6" rx="2.1" ry="2.6"/><path d="M12.3 11c2.6 0 5.6 3.6 5.6 6.2 0 1.8-1.3 2.6-2.8 2.6-1.2 0-1.8-.6-2.8-.6s-1.7.6-2.9.6c-1.5 0-2.8-.8-2.8-2.6 0-2.6 3-6.2 5.7-6.2z"/></svg></span>Pasear</button>
-      <button data-go="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/><path d="M7.5 12.5h2.5l1.3-2.3 2 4.3 1.4-2h1.8"/></svg>Progreso</button>
-      <button data-go="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Ajustes</button>
+      <button data-go="stats"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(12 12) scale(1.200) translate(-12 -12.88)" stroke-width="2.00"><path d="M12 20s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 7.5 2.6C19.5 15.4 12 20 12 20z"/><path d="M7.5 12.5h2.5l1.3-2.3 2 4.3 1.4-2h1.8"/></g></svg>Progreso</button>
+      <button data-go="ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><g transform="translate(12 12) scale(0.841) translate(-12 -12)" stroke-width="2.85"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></g></svg>Ajustes</button>
     </nav>
   </section>
 
@@ -169,11 +169,11 @@
 <div class="tooltip" id="tooltip"></div>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<script src="app-nativa.js?v=11"></script>
+<script src="app-nativa.js?v=12"></script>
 <script src="leaflet.js"></script>
 <script src="supabase.js"></script>
 <script src="config.js"></script>
-<script>window.SALCHI_ASSETS={"caminando": "goku-caminando-sprite.webp", "ladeando": "goku-ladeando-sprite.webp", "durmiendo": "goku-durmiendo-sprite.webp", "cara": "goku-cara.webp", "logo": "logo-guau.webp", "ilu-feliz": "ilu-feliz.webp", "ilu-curioso": "ilu-curioso.webp", "ilu-guino": "ilu-guino.webp", "ilu-perfil": "ilu-perfil.webp", "ilu-dormilon": "ilu-dormilon.webp", "fondo-coral": "fondo-coral.webp", "fondo-huesitos": "fondo-huesitos.webp", "fondo-huellitas": "fondo-huellitas.webp", "fondo-nubes": "fondo-nubes.webp", "fondo-noche": "fondo-noche.webp", "pug:caminando": "pug-caminando-sprite.webp", "pug:ladeando": "pug-ladeando-sprite.webp", "pug:durmiendo": "pug-durmiendo-sprite.webp", "pug:cara": "pug-cara.webp", "pug:ilu-feliz": "ilu-pug-feliz.webp", "pug:ilu-curioso": "ilu-pug-curioso.webp", "pug:ilu-guino": "ilu-pug-guino.webp", "pug:ilu-perfil": "ilu-pug-perfil.webp", "pug:ilu-dormilon": "ilu-pug-dormilon.webp", "golden:caminando": "golden-caminando-sprite.webp", "golden:ladeando": "golden-ladeando-sprite.webp", "golden:durmiendo": "golden-durmiendo-sprite.webp", "golden:cara": "golden-cara.webp", "golden:ilu-feliz": "ilu-golden-feliz.webp", "golden:ilu-curioso": "ilu-golden-curioso.webp", "golden:ilu-guino": "ilu-golden-guino.webp", "golden:ilu-perfil": "ilu-golden-perfil.webp", "golden:ilu-dormilon": "ilu-golden-dormilon.webp"};</script>
-<script src="app.js?v=11"></script>
+<script>window.SALCHI_ASSETS={"caminando": "goku-caminando-sprite.webp", "ladeando": "goku-ladeando-sprite.webp", "durmiendo": "goku-durmiendo-sprite.webp", "cara": "goku-cara.webp", "logo": "logo-guau.webp", "ilu-feliz": "ilu-feliz.webp", "ilu-curioso": "ilu-curioso.webp", "ilu-guino": "ilu-guino.webp", "ilu-perfil": "ilu-perfil.webp", "ilu-dormilon": "ilu-dormilon.webp", "fondo-coral": "fondo-coral.webp", "fondo-huesitos": "fondo-huesitos.webp", "fondo-huellitas": "fondo-huellitas.webp", "fondo-nubes": "fondo-nubes.webp", "fondo-noche": "fondo-noche.webp", "pug:caminando": "pug-caminando-sprite.webp", "pug:ladeando": "pug-ladeando-sprite.webp", "pug:durmiendo": "pug-durmiendo-sprite.webp", "pug:cara": "pug-cara.webp", "pug:ilu-feliz": "ilu-pug-feliz.webp", "pug:ilu-curioso": "ilu-pug-curioso.webp", "pug:ilu-guino": "ilu-pug-guino.webp", "pug:ilu-perfil": "ilu-pug-perfil.webp", "pug:ilu-dormilon": "ilu-pug-dormilon.webp", "golden:caminando": "golden-caminando-sprite.webp", "golden:ladeando": "golden-ladeando-sprite.webp", "golden:durmiendo": "golden-durmiendo-sprite.webp", "golden:cara": "golden-cara.webp", "golden:ilu-feliz": "ilu-golden-feliz.webp", "golden:ilu-curioso": "ilu-golden-curioso.webp", "golden:ilu-guino": "ilu-golden-guino.webp", "golden:ilu-perfil": "ilu-golden-perfil.webp", "golden:ilu-dormilon": "ilu-golden-dormilon.webp", "terrier:caminando": "terrier-caminando-sprite.webp", "terrier:ladeando": "terrier-ladeando-sprite.webp", "terrier:durmiendo": "terrier-durmiendo-sprite.webp", "terrier:cara": "terrier-cara.webp", "terrier:ilu-feliz": "ilu-terrier-feliz.webp", "terrier:ilu-curioso": "ilu-terrier-curioso.webp", "terrier:ilu-guino": "ilu-terrier-guino.webp", "terrier:ilu-perfil": "ilu-terrier-perfil.webp", "terrier:ilu-dormilon": "ilu-terrier-dormilon.webp"};</script>
+<script src="app.js?v=12"></script>
 </body>
 </html>

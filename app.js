@@ -13,9 +13,12 @@ const ASSETS=window.SALCHI_ASSETS||{};
 const RAZAS={
   salchicha:{id:'salchicha',name:'Salchicha',kg:9,desc:'Patas cortas, corazón gigante'},
   pug:{id:'pug',name:'Pug',kg:8,desc:'Carita chata, puro cariño'},
-  golden:{id:'golden',name:'Golden',kg:30,desc:'Energía y cola feliz'}
+  golden:{id:'golden',name:'Golden',kg:30,desc:'Energía y cola feliz'},
+  terrier:{id:'terrier',name:'Terrier chileno',corto:'Terrier',kg:6,desc:'Chilenazo, ágil y regalón'}
 };
-const LOOKS=['salchicha','pug','golden'];
+const LOOKS=['salchicha','pug','golden','terrier'];
+const MAX_PERROS=4;   // máximo de perros por cuenta (propios + de familias)
+const MSG_LLENO=`Llegaste al máximo de ${MAX_PERROS} perros por cuenta. Para sumar otro, primero elimina uno o sal de su familia.`;
 /* "otra" = raza que aún no está en la app: usa el look genérico (golden) */
 const lookDe=d=>d&&RAZAS[d.breed]?d.breed:(d&&d.breed==='otra'?'golden':'salchicha');
 const razaNombre=d=>d&&d.breed==='otra'?(d.breedName||'Otra raza'):RAZAS[lookDe(d)].name;
@@ -28,7 +31,15 @@ const DEFAULT_CENTER=[-33.4395,-70.6400];
 const NAT=window.AppNativa||null,IS_APP=!!(NAT&&NAT.esApp);   // app (Capacitor) vs navegador
 const PLAT=IS_APP?(NAT.plataforma==='android'?'android':'ios'):'web',IS_ANDROID=PLAT==='android';
 const TXT={ajustes:IS_ANDROID?'Ajustes de Android':'Ajustes del iPhone',navegador:PLAT==='android'?'Chrome':PLAT==='ios'?'Safari':'el navegador'};
-const PRIVACIDAD_URL='privacidad.html',BORRAR_URL='borrar-cuenta.html';
+const PRIVACIDAD_URL='privacidad.html';
+const ENERGIA_OK=IS_ANDROID&&!!(NAT.energia&&NAT.energia.disponible);
+/* Cada marca agrega su propio ahorro de batería encima del de Android */
+const MARCA_TIPS=[[/xiaomi|redmi|poco/,'En Xiaomi, Redmi y POCO: en los ajustes de Guau Guau toca <b>Ahorro de batería → Sin restricciones</b> y activa <b>Inicio automático</b>.'],
+  [/samsung/,'En Samsung: en <b>Ajustes → Batería → Límites de uso en segundo plano</b>, revisa que Guau Guau no esté en «Apps en suspensión» ni «Apps en suspensión profunda».'],
+  [/huawei|honor/,'En Huawei y Honor: en <b>Ajustes → Batería → Inicio de aplicaciones</b>, elige Guau Guau, <b>Gestionar manualmente</b> y activa todas las opciones.'],
+  [/oppo|realme|oneplus/,'En OPPO, realme y OnePlus: en los ajustes de Guau Guau toca <b>Uso de batería</b> y activa <b>Permitir actividad en segundo plano</b>.'],
+  [/vivo|iqoo/,'En vivo: en <b>Ajustes → Batería → Consumo alto en segundo plano</b>, activa Guau Guau.']];
+const marcaTip=f=>{const m=MARCA_TIPS.find(([re])=>re.test(f||''));return m?m[1]:'';};
 const NATIVE_DIST=10;   // metros mínimos entre lecturas del GPS nativo
 const SIM_SPEED=15, DOG_STEP=0.35;
 const COLORS={orange:['#FF6B1A','#D9520A'],blue:['#1F5EFF','#1544C2'],pink:['#FF7EB6','#E0558F'],green:['#18B05A','#0E8A44'],yellow:['#FFC629','#D9A300'],ink:['#1E1A1D','#000000'],purple:['#7C5CF0','#5B3FD0']};
@@ -240,7 +251,9 @@ function makeDemo(){
    ========================================================= */
 function ageMonths(d=S.dog){if(!d||!d.birthDate)return 48;const b=new Date(d.birthDate+'T12:00:00'),n=new Date();let m=(n.getFullYear()-b.getFullYear())*12+(n.getMonth()-b.getMonth());if(n.getDate()<b.getDate())m--;return Math.max(0,m);}
 function ageLabel(d=S.dog){const m=ageMonths(d);if(m<12)return m+(m===1?' mes':' meses');const y=Math.floor(m/12);return y+(y===1?' año':' años');}
-function stage(){const m=ageMonths();if(m<12)return 'puppy';if(m>=(lookDe(S.dog)==='salchicha'?108:96))return 'senior';return 'adult';}
+function stage(){const m=ageMonths();if(m<12)return 'puppy';if(m>=({salchicha:108,terrier:120}[lookDe(S.dog)]||96))return 'senior';return 'adult';}
+const manadaLlena=()=>S.dogs.length>=MAX_PERROS;
+const errPerro=e=>{const m=(e&&e.message)||'';if(/m[aá]ximo.*perros/i.test(m))return MSG_LLENO;if(/breed/.test(m))return 'Falta actualizar la base de datos (migración v12).';return 'No se pudo guardar. Revisa tu conexión.';};
 const overweight=()=>S.dog.weight>S.dog.ideal*1.1;
 const underweight=()=>S.dog.weight<S.dog.ideal*0.9;
 function walkRec(){
@@ -249,6 +262,7 @@ function walkRec(){
     salchicha:{pup:mini?20:30,adult:[mini?40:60,2,mini?'Una salchicha miniatura adulta necesita cerca de 40 minutos diarios, en dos salidas.':'Una salchicha estándar adulta necesita alrededor de una hora diaria, en dos salidas.'],senior:[mini?30:40,3,'Salchicha senior: mejor varios paseos cortos y tranquilos que uno largo.'],pupWhy:'Nada de saltos ni escaleras mientras crece.'},
     pug:{pup:20,adult:[45,3,'Un pug adulto necesita unos 45 minutos diarios, mejor en tres salidas cortas y a paso tranquilo: con su nariz chata le cuesta respirar si se agita.'],senior:[30,3,'Pug senior: paseos cortos, frescos y sin apuro.'],pupWhy:'Paseos suaves y siempre a la sombra.'},
     golden:{pup:45,adult:[90,2,'Un golden adulto necesita cerca de hora y media diaria, en dos salidas, idealmente con juego o agua.'],senior:[50,3,'Golden senior: sigue amando pasear, pero en salidas más cortas y suaves con sus caderas.'],pupWhy:'Hasta el año y medio nada de correr largo ni saltar: sus articulaciones siguen creciendo.'},
+    terrier:{pup:25,adult:[70,2,'Un terrier chileno adulto necesita cerca de una hora y diez diaria, en dos salidas. Es muy activo: si sumas juego u olfateo, mejor.'],senior:[45,3,'Terrier senior: sigue curioso y con energía, pero mejor tres paseos tranquilos.'],pupWhy:'Es inquieto, pero no lo canses: paseos cortos y mucho juego suave.'},
     otra:{pup:30,adult:[60,2,'Un perro adulto necesita alrededor de una hora diaria, repartida en dos salidas.'],senior:[40,3,'Perro senior: mejor varios paseos cortos y tranquilos que uno largo.'],pupWhy:'Nada de saltos bruscos mientras crece.'}
   }[raza];
   if(st==='puppy'){const each=Math.max(5,Math.min(5*Math.max(1,m),R.pup));return {total:each*2,count:2,each,why:`Regla para cachorros: unos 5 minutos por mes de edad, dos veces al día (${m} ${m===1?'mes':'meses'}). ${R.pupWhy}`};}
@@ -416,7 +430,8 @@ function go(v){
 const SPRITE_META={
   salchicha:{caminando:{n:24,cols:6,rows:4,w:360,h:252,dur:40},ladeando:{n:24,cols:6,rows:4,w:380,h:370,dur:100},durmiendo:{n:25,cols:5,rows:5,w:420,h:248,dur:120}},
   pug:{caminando:{n:24,cols:6,rows:4,w:300,h:288,dur:40},ladeando:{n:30,cols:6,rows:5,w:300,h:364,dur:40},durmiendo:{n:20,cols:5,rows:4,w:360,h:318,dur:160}},
-  golden:{caminando:{n:24,cols:6,rows:4,w:340,h:274,dur:40},ladeando:{n:30,cols:6,rows:5,w:300,h:305,dur:40},durmiendo:{n:20,cols:5,rows:4,w:360,h:312,dur:160}}
+  golden:{caminando:{n:24,cols:6,rows:4,w:340,h:274,dur:40},ladeando:{n:30,cols:6,rows:5,w:300,h:305,dur:40},durmiendo:{n:20,cols:5,rows:4,w:360,h:312,dur:160}},
+  terrier:{caminando:{n:24,cols:6,rows:4,w:320,h:281,dur:40},ladeando:{n:30,cols:6,rows:5,w:300,h:384,dur:40},durmiendo:{n:20,cols:5,rows:4,w:360,h:332,dur:160}}
 };
 const spriteMeta=(k,look)=>(SPRITE_META[look]||SPRITE_META.salchicha)[k];
 const sprites=new Set();
@@ -425,11 +440,30 @@ function bindAssets(root=document){
   $$('[data-asset]',root).forEach(el=>{
     const k=el.dataset.asset,rz=el.dataset.raza||(el.closest&&el.closest('[data-raza]')||{dataset:{}}).dataset.raza,look=LOOKS.includes(rz)?rz:curLook();
     if(spriteMeta(k,look)&&assetOf(k,look)){
-      if(el.tagName==='IMG'){const sp=document.createElement('span');sp.className=el.className+' sprite';if(el.id)sp.id=el.id;sp.dataset.asset=k;sp.setAttribute('role','img');if(el.alt)sp.setAttribute('aria-label',el.alt);else sp.setAttribute('aria-hidden','true');el.replaceWith(sp);el=sp;}
+      if(el.tagName==='IMG'){const sp=document.createElement('span');sp.className=el.className+' sprite';if(el.id)sp.id=el.id;sp.dataset.asset=k;if(el.dataset.raza)sp.dataset.raza=el.dataset.raza;sp.setAttribute('role','img');if(el.alt)sp.setAttribute('aria-label',el.alt);else sp.setAttribute('aria-hidden','true');el.replaceWith(sp);el=sp;}
       if(!el._sp||el._sp.k!==k||el._sp.look!==look)makeSprite(el,k,look);
     }else if(el.tagName==='IMG'){const src=assetOf(k,look);if(src&&el.getAttribute('src')!==src)el.src=src;}
   });
 }
+/* La manada: tus perros (máx. 4) caminando juntos en la pantalla de carga */
+function manadaGuardada(){
+  const m=LS.get('guau.manada');if(Array.isArray(m)){const ok=m.filter(x=>LOOKS.includes(x)).slice(0,MAX_PERROS);if(ok.length)return ok;}
+  const lk=LS.get('guau.look');return LOOKS.includes(lk)?[lk]:['golden','pug','terrier','salchicha'];
+}
+function guardarManada(){
+  if(S.mode!=='cloud'||!S.dog)return;
+  const m=[S.dog,...S.dogs.filter(d=>d.id!==S.dog.id)].slice(0,MAX_PERROS).map(lookDe);
+  if(JSON.stringify(m)!==JSON.stringify(LS.get('guau.manada')))LS.set('guau.manada',m);
+}
+function pintarManada(escena,looks){
+  if(!escena)return;const viejo=$('.ws-pack',escena);if(viejo)viejo.remove();
+  /* el primero (el perro elegido) va adelante, a la derecha */
+  const orden=looks.slice(0,MAX_PERROS).reverse(),p=document.createElement('div');
+  p.className='ws-pack n'+orden.length;p.setAttribute('aria-hidden','true');
+  p.innerHTML=orden.map(l=>`<img class="ws-dog" data-asset="caminando" data-raza="${l}" alt="">`).join('');
+  escena.appendChild(p);bindAssets(p);
+}
+const pintarCarga=()=>pintarManada($('#scr-loading .walk-scene'),manadaGuardada());
 function spriteLoop(now){
   sprites.forEach(el=>{if(!el.isConnected){sprites.delete(el);return;}if(!el.offsetParent)return;const s=el._sp,f=Math.floor((now-s.t0)/s.m.dur)%s.m.n;
     if(f!==s.f){s.f=f;const c=f%s.m.cols,r=Math.floor(f/s.m.cols);el.style.backgroundPosition=`${s.m.cols>1?c/(s.m.cols-1)*100:0}% ${s.m.rows>1?r/(s.m.rows-1)*100:0}%`;}});
@@ -460,7 +494,7 @@ async function composeAvatar(key,look){
 async function ensureAvatars(dogs){for(const d of (dogs||[])){if(parseAv(d.avatarPath)){try{await composeAvatar(d.avatarPath,lookDe(d));}catch(e){console.warn('avatar',e);}}}}
 const avatarSrc=d=>{const look=d?lookDe(d):curLook();if(!d)return assetOf('cara',look);const a=parseAv(d.avatarPath);if(a)return avCache.get(look+'|'+d.avatarPath)||assetOf('ilu-'+a.ilu,look)||assetOf('cara',look);return urlFor(d.avatarPath)||assetOf('cara',look);};
 function renderBinds(){$$('[data-bind="dogname"]').forEach(e=>e.textContent=S.dog?S.dog.name:'');const a=$('#dogSwitch img');if(a&&S.dog)a.src=avatarSrc(S.dog);}
-function renderAll(){if(!S.dog)return;document.body.dataset.perro=curLook();if(LS.get('guau.look')!==curLook())LS.set('guau.look',curLook());bindAssets(document);renderBinds();renderProfile();renderRoutes();if(S.view==='stats')renderStats();renderHealth();if(S.view==='ajustes')renderSettings();if(S.view==='fotos')renderGallery();$('#demoBar').hidden=S.mode!=='demo';$('#scr-main').classList.toggle('demo',S.mode==='demo');updateSyncBar();}
+function renderAll(){if(!S.dog)return;document.body.dataset.perro=curLook();if(LS.get('guau.look')!==curLook())LS.set('guau.look',curLook());guardarManada();bindAssets(document);renderBinds();renderProfile();renderRoutes();if(S.view==='stats')renderStats();renderHealth();if(S.view==='ajustes')renderSettings();if(S.view==='fotos')renderGallery();$('#demoBar').hidden=S.mode!=='demo';$('#scr-main').classList.toggle('demo',S.mode==='demo');updateSyncBar();}
 
 /* ---------- toast & tooltip ---------- */
 let toastT;
@@ -661,6 +695,11 @@ const CUIDADOS={
     ['spine','blue','Caderas y codos','Mantén su peso a raya y evita saltos fuertes: es una raza con tendencia a displasia.'],
     ['drop','orange','Agua y orejas','Lleva agua en los paseos y seca bien sus orejas si se baña o nada.'],
     ['paw','green','Cepillado','Cepíllalo 2 o 3 veces por semana para evitar nudos y que bote menos pelo.']]},
+  terrier:{titulo:'Cuidados de terrier chileno',cama:'Cama abrigada: con su pelo corto le encanta taparse.',tips:[
+    ['ball','pink','Energía y cabeza','Es cazador y muy listo: juegos de olfato, buscar premios y pelota lo dejan feliz y tranquilo en casa.'],
+    ['harness','blue','Correa siempre','Persigue gatos, palomas y lo que se mueva. Pasea con correa y arnés, sobre todo cerca de calles.'],
+    ['coat','orange','Pelo corto','Con frío agradece un abriguito, y con sol fuerte busca sombra: su piel blanca se quema fácil.'],
+    ['eye','green','Dientes y orejas','Como perro chico junta sarro: revisa sus dientes y limpia sus orejas una vez por semana.']]},
   otra:{titulo:'Cuidados de tu perro',cama:'Cama cómoda en un rincón tranquilo.',tips:[
     ['harness','pink','Arnés cómodo','Un buen arnés reparte la fuerza y cuida su cuello en los tirones.'],
     ['paw','blue','Revisa sus patas','Al volver del paseo mira sus almohadillas: piedritas, cortes o espigas se detectan rápido.'],
@@ -675,8 +714,8 @@ function renderHealth(){
   else if(underweight())alerts.push(['warn',I.scale,`${esc(p.name)} está bajo su peso ideal. Conviene consultarlo con el veterinario.`]);
   else alerts.push(['good',I.check,`Peso en rango: ${nf1.format(p.weight)} kg (ideal ${nf1.format(p.ideal)} kg).`]);
   const lk=p.breed==='otra'?'otra':lookDe(p);
-  if(hot)alerts.push(['warn',I.thermo,{salchicha:'Temporada de calor: evita pasear entre 12:00 y 17:00. La vereda quema y las salchichas van muy cerca del suelo.',pug:'Temporada de calor: los pug se ahogan fácil con calor. Pasea temprano o de noche, lleva agua y para si jadea fuerte.',golden:'Temporada de calor: evita pasear entre 12:00 y 17:00 y lleva agua. Con tanto pelo, se acalora rápido.',otra:'Temporada de calor: evita pasear entre 12:00 y 17:00 y lleva agua. La vereda puede quemar sus patas.'}[lk]]);
-  if(cold&&lk!=='golden')alerts.push(['info',I.coat,{salchicha:'Hace frío: con patas cortas y panza cerca del suelo, un abriguito ayuda en los paseos.',pug:'Hace frío: con su pelo corto, un abriguito ayuda en los paseos de la mañana y la noche.',otra:'Hace frío: si tiene pelo corto, un abriguito ayuda en los paseos.'}[lk]]);
+  if(hot)alerts.push(['warn',I.thermo,{salchicha:'Temporada de calor: evita pasear entre 12:00 y 17:00. La vereda quema y las salchichas van muy cerca del suelo.',pug:'Temporada de calor: los pug se ahogan fácil con calor. Pasea temprano o de noche, lleva agua y para si jadea fuerte.',golden:'Temporada de calor: evita pasear entre 12:00 y 17:00 y lleva agua. Con tanto pelo, se acalora rápido.',terrier:'Temporada de calor: evita pasear entre 12:00 y 17:00 y lleva agua. Su piel blanca y su pelo corto se queman fácil con el sol.',otra:'Temporada de calor: evita pasear entre 12:00 y 17:00 y lleva agua. La vereda puede quemar sus patas.'}[lk]]);
+  if(cold&&lk!=='golden')alerts.push(['info',I.coat,{salchicha:'Hace frío: con patas cortas y panza cerca del suelo, un abriguito ayuda en los paseos.',pug:'Hace frío: con su pelo corto, un abriguito ayuda en los paseos de la mañana y la noche.',terrier:'Hace frío: el terrier chileno tiene pelo corto y poca grasa, así que un abriguito le viene bien en las mañanas y noches.',otra:'Hace frío: si tiene pelo corto, un abriguito ayuda en los paseos.'}[lk]]);
   if(st==='puppy')alerts.push(['info',I.info,'Cachorro en crecimiento: paseos cortos, nada de saltos y muchas siestas.']);
   if(st==='senior')alerts.push(['info',I.info,'Etapa senior: controles cada 6 meses y atención a rigidez o dolor de espalda.']);
   let tl='',placed=false;
@@ -721,7 +760,7 @@ function renderSettings(){
       ${S.mode==='demo'?(IS_APP?`<button class="btn btn-orange btn-block" style="margin-top:14px" data-action="to-login">Iniciar sesión</button>`:`<button class="btn-google" style="margin-top:14px" data-action="to-login">${$('#googleBtn svg').outerHTML}Iniciar sesión con Google</button>`):''}</div>
     <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.paw}</span><h3>Mis perros</h3></div><div class="list">
       ${S.dogs.map(d=>`<button class="li ${d.id===S.dog.id?'on':''}" data-switch-dog="${d.id}"><img src="${avatarSrc(d)}" alt=""><span>${esc(d.name)}<small>${ageLabel(d)} · ${nf1.format(d.weight)} kg${S.mode==='cloud'&&!isOwner(d)?' · familia':''}</small></span><span class="chev">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
-      <button class="li" data-action="add-dog"><span class="ic ic-green">${I.plus}</span><span>Agregar otro perro</span></button>
+      <button class="li${manadaLlena()?' dim':''}" data-action="add-dog"><span class="ic ic-green">${I.plus}</span><span>Agregar otro perro<small>${S.dogs.length} de ${MAX_PERROS} perros${manadaLlena()?' · llegaste al máximo':''}</small></span></button>
       <button class="li" data-action="customize"><span class="ic ic-orange">${I.star}</span><span>Avatar y fondo de ${esc(S.dog.name)}<small>NV ${levelInfo().level} · ${fondosHasta(levelInfo().level).length} de ${FONDOS.length} fondos desbloqueados</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-action="edit-goals"><span class="ic ic-green">${I.target}</span><span>Metas de paseo<small>Mínimo ${perWalkMin()} min por paseo · ${dayGoal()} min al día</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-action="edit-routine"><span class="ic ic-yellow">${I.clock}</span><span>Rutina y horarios<small>${customRoutine()?'Personalizada':'Recomendada'} · meta ${dayGoal()} min</small></span><span class="chev">${I.chev}</span></button>
@@ -739,23 +778,24 @@ function renderSettings(){
       <button class="li" data-action="test-notif"><span class="ic ic-blue">${I.bell}</span><span>Probar un aviso<small>Llega en 1 minuto, aunque cierres la app</small></span><span class="chev">${I.chev}</span></button>
       </div><p class="hint" style="margin-top:8px">Los horarios salen de <b>Rutina y horarios</b>: si los cambias, los avisos se actualizan solos. ${IS_ANDROID?'Durante el paseo verás la notificación «Ubicación activa» y te avisamos cuando se cumpla el mínimo.':'Durante el paseo verás el tiempo en la pantalla bloqueada y te avisamos cuando se cumpla el mínimo.'}</p></div>`;})():''}
     <div class="card"><div class="ctitle"><span class="ic ic-pink">${I.phone}</span><h3>${IS_APP?(IS_ANDROID?'App de Android':'App de iPhone'):'Úsala como app'}</h3></div>
-      <p style="font-weight:600;color:var(--ink-2);font-size:14.5px">${IS_APP?(IS_ANDROID?'Estás usando la app: el GPS sigue grabando con la pantalla apagada (verás la notificación «Ubicación activa»). Si Android cierra la app durante un paseo, al abrirla lo retomamos.':'Estás usando la app: el GPS sigue grabando con la pantalla bloqueada (verás un indicador azul arriba). Si iOS cierra la app durante un paseo, al abrirla lo retomamos.'):'<b>iPhone:</b> en Safari toca Compartir → «Agregar a inicio».<br><b>Android:</b> en Chrome toca ⋮ → «Instalar app» o «Agregar a la pantalla principal».<br>Durante el paseo mantén la pantalla encendida: el navegador pausa el GPS cuando el teléfono se bloquea.'}</p></div>
+      <p style="font-weight:600;color:var(--ink-2);font-size:14.5px">${IS_APP?(IS_ANDROID?'Estás usando la app: el GPS sigue grabando con la pantalla apagada (verás la notificación «Ubicación activa»). Si Android cierra la app durante un paseo, al abrirla lo retomamos.':'Estás usando la app: el GPS sigue grabando con la pantalla bloqueada (verás un indicador azul arriba). Si iOS cierra la app durante un paseo, al abrirla lo retomamos.'):'<b>iPhone:</b> en Safari toca Compartir → «Agregar a inicio».<br><b>Android:</b> en Chrome toca ⋮ → «Instalar app» o «Agregar a la pantalla principal».<br>Durante el paseo mantén la pantalla encendida: el navegador pausa el GPS cuando el teléfono se bloquea.'}</p>${ENERGIA_OK?'<div class="list" id="energiaFila" style="margin-top:10px"></div>':''}</div>
     <div class="card"><div class="list">
       <button class="li" data-action="privacy"><span class="ic ic-blue">${I.lock}</span><span>Privacidad<small>Qué datos guardamos y para qué</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-action="logout"><span class="ic ic-yellow">${I.out}</span><span>${S.mode==='demo'?'Salir del modo demo':'Cerrar sesión'}</span></button></div></div>
     ${S.mode==='cloud'?`<div class="card"><div class="list"><button class="li danger" data-action="delete-account"><span class="ic" style="background:#FDE3E1;color:var(--red)">${I.trash}</span><span>Eliminar mi cuenta<small>Borra tu cuenta, perros, paseos y fotos</small></span></button></div></div>`:''}
-    <p class="disclaimer">Guau Guau · v11${IS_APP?' · '+(IS_ANDROID?'Android':'iPhone'):''}</p>`;
+    <p class="disclaimer">Guau Guau · v12${IS_APP?' · '+(IS_ANDROID?'Android':'iPhone'):''}</p>`;
   bindAssets($('#settingsBody'));
   if(S.mode==='cloud'){renderFamilyCard();if(!S.fam||S.fam.dogId!==S.dog.id)loadFamily(S.dog.id);}
+  renderEnergia();
 }
 
 /* =========================================================
    Formulario del perro (onboarding + editar)
    ========================================================= */
-function razaSegHTML(){return `<div class="field full"><span class="flabel">Raza</span><div class="seg seg-raza" data-seg="breed">${LOOKS.map(r=>`<button type="button" data-v="${r}">${RAZAS[r].name}</button>`).join('')}<button type="button" data-v="otra">Otra</button></div></div>
+function razaSegHTML(){return `<div class="field full"><span class="flabel">Raza</span><div class="seg seg-raza" data-seg="breed">${LOOKS.map(r=>`<button type="button" data-v="${r}">${RAZAS[r].corto||RAZAS[r].name}</button>`).join('')}<button type="button" data-v="otra">Otra</button></div></div>
     <div class="field full" data-only="otra"><label for="fBreedName">¿Qué raza es?</label><input class="input" id="fBreedName" maxlength="40" placeholder="Ej: Beagle, Poodle, Mestizo…"></div>`;}
 function dogFormHTML(d,opts){
-  return `${opts&&opts.raza?razaSegHTML():''}<div class="field full"><label for="fName">Nombre</label><input class="input" id="fName" maxlength="40" value="${esc(d.name)}" placeholder="${d.breed==='pug'?'Ej: Mochi':d.breed==='golden'?'Ej: Simba':'Ej: Goku'}"></div>
+  return `${opts&&opts.raza?razaSegHTML():''}<div class="field full"><label for="fName">Nombre</label><input class="input" id="fName" maxlength="40" value="${esc(d.name)}" placeholder="Ej: ${{pug:'Mochi',golden:'Simba',terrier:'Canela',otra:'Luna'}[d.breed]||'Goku'}"></div>
     <div class="field full"><label for="fBirth">Fecha de nacimiento (aprox.)</label><input class="input" id="fBirth" type="date" value="${esc(d.birthDate)}" max="${new Date().toISOString().slice(0,10)}"></div>
     <div class="field"><label for="fWeight">Peso actual (kg)</label><input class="input" id="fWeight" type="number" inputmode="decimal" min="0.5" max="90" step="0.1" value="${d.weight}"></div>
     <div class="field"><label for="fIdeal">Peso ideal (kg)</label><input class="input" id="fIdeal" type="number" inputmode="decimal" min="0.5" max="90" step="0.1" value="${d.ideal}"></div>
@@ -791,7 +831,7 @@ function renderRazaPick(){
   $('#onbHead').classList.add('pick');$('#onbDog').hidden=true;$('#onbStep2').hidden=true;$('#onbJoin').hidden=S.mode!=='cloud';
   const pk=$('#onbPick');pk.hidden=false;
   pk.innerHTML=`<div class="raza-grid">${LOOKS.map(r=>`<button type="button" class="raza-card rc-${r}" data-pick-raza="${r}"><span class="rc-dog" data-asset="ladeando" data-raza="${r}"></span><b>${RAZAS[r].name}</b><small>${RAZAS[r].desc}</small></button>`).join('')}
-      <button type="button" class="raza-card rc-otra" data-pick-raza="otra"><span class="rc-q">?</span><b>No está mi perro</b><small>Cuéntanos su raza</small></button></div>
+      <button type="button" class="raza-card rc-otra" data-pick-raza="otra"><span class="rc-q">?</span><span class="rc-txt"><b>No está mi perro</b><small>Cuéntanos su raza y la sumamos pronto</small></span></button></div>
     <div class="raza-otra" id="onbOtra" hidden><label class="flabel" for="onbOtraIn">¿Qué raza es tu perro?</label>
       <input class="input" id="onbOtraIn" maxlength="40" placeholder="Ej: Beagle, Poodle, Mestizo…" autocomplete="off">
       <p class="hint">Guardamos tu pedido para sumar su raza en una próxima versión. Mientras tanto usamos un perrito genérico.</p>
@@ -819,10 +859,11 @@ function showOnbForm(){
 }
 async function saveOnboarding(){
   if(!onbRaza){renderRazaPick();return;}
+  if(onbMode==='add'&&manadaLlena()){toast(MSG_LLENO,4500);return;}
   const d=readDogForm($('#onbForm'),Object.assign(DEFAULT_DOG(),onbRaza));if(!d)return;
   const b=$('#onbSave');b.disabled=true;b.innerHTML='<span class="spin"></span>';
   try{const saved=await DB.saveDog(d);S.dogs.push(saved);await selectDog(saved.id);show('main');go('perfil');renderAll();toast(`¡Bienvenido, ${saved.name}!`);scheduleReminders(true);setTimeout(maybeAskReminders,2500);}
-  catch(e){console.error(e);toast(/breed/.test(e.message||'')?'Falta actualizar la base de datos (migración v10).':'No se pudo guardar. Revisa tu conexión.',4500);}
+  catch(e){console.error(e);toast(errPerro(e),4500);}
   b.disabled=false;b.textContent='Crear perfil';
 }
 function openEditDog(){
@@ -834,13 +875,13 @@ function openEditDog(){
   const f=$('#edForm',sh);mountDogForm(f,S.dog,{raza:true});$('[data-close]',sh).onclick=()=>closeSheet();
   $('#edSave',sh).onclick=async()=>{const d=readDogForm(f,S.dog);if(!d)return;const b=$('#edSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
     if(d.breed==='otra'&&(S.dog.breed!=='otra'||S.dog.breedName.toLowerCase()!==d.breedName.toLowerCase()))DB.pedirRaza(d.breedName);
-    try{const saved=await DB.saveDog(d);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;closeSheet();await ensureAvatars([S.dog]);renderAll();scheduleReminders(true);toast('Perfil actualizado');}catch(e){console.error(e);b.disabled=false;b.textContent='Guardar';toast(/breed/.test(e.message||'')?'Falta actualizar la base de datos (migración v10).':'No se pudo guardar. Revisa tu conexión.',4500);}};
+    try{const saved=await DB.saveDog(d);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;closeSheet();await ensureAvatars([S.dog]);renderAll();scheduleReminders(true);toast('Perfil actualizado');}catch(e){console.error(e);b.disabled=false;b.textContent='Guardar';toast(errPerro(e),4500);}};
   const del=$('#edDel',sh);if(del)del.onclick=()=>confirmSheet(`¿Eliminar a ${S.dog.name}?`,'Se borran su perfil y todos sus paseos. Las rutas se conservan.','Eliminar',async()=>{const id=S.dog.id;await DB.deleteDog(id);S.dogs=S.dogs.filter(x=>x.id!==id);await selectDog(S.dogs[0].id);renderAll();toast('Perfil eliminado');});
 }
 function openDogSwitch(){
   const sh=openSheet(`<h2>Tus perros</h2><p class="sub" style="margin-bottom:14px">Elige de quién es el paseo.</p>
     ${S.dogs.map(d=>`<button class="opt" data-switch-dog="${d.id}"><span class="thumb" style="background:var(--yellow)"><img src="${avatarSrc(d)}" alt="" style="width:100%;height:100%;object-fit:cover"></span><span><b>${esc(d.name)}</b><small>${ageLabel(d)} · ${nf1.format(d.weight)} kg</small></span><span class="go-ic">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
-    <button class="opt" data-action="add-dog"><span class="thumb" style="background:var(--green-3);display:grid;place-items:center;color:var(--green-d)">${I.plus}</span><span><b>Agregar otro perro</b><small>Cada uno tiene sus paseos y metas</small></span></button>${S.mode==='cloud'?`<button class="opt" data-action="fam-join"><span class="thumb" style="background:#FDE6F0;display:grid;place-items:center;color:#C0306A">${I.heart}</span><span><b>Unirme a una familia</b><small>Usa el código que te compartieron</small></span></button>`:''}`);
+    <button class="opt${manadaLlena()?' dim':''}" data-action="add-dog"><span class="thumb" style="background:var(--green-3);display:grid;place-items:center;color:var(--green-d)">${I.plus}</span><span><b>Agregar otro perro</b><small>${manadaLlena()?`Máximo ${MAX_PERROS} perros por cuenta`:`Cada uno tiene sus paseos y metas · ${S.dogs.length} de ${MAX_PERROS}`}</small></span></button>${S.mode==='cloud'?`<button class="opt${manadaLlena()?' dim':''}" data-action="fam-join"><span class="thumb" style="background:#FDE6F0;display:grid;place-items:center;color:#C0306A">${I.heart}</span><span><b>Unirme a una familia</b><small>Usa el código que te compartieron</small></span></button>`:''}`);
   bindAssets(sh);
 }
 async function selectDog(id){
@@ -923,8 +964,10 @@ function askLocationSettings(){
   if(!IS_APP){toast('Permite la ubicación para este sitio en los ajustes del navegador.',4500);return;}
   confirmSheet('Permite la ubicación',IS_ANDROID?'Para registrar el recorrido, Guau Guau necesita tu ubicación. En Ajustes toca <b>Permisos → Ubicación</b>, elige <b>Permitir solo mientras se usa la app</b> y activa <b>Usar ubicación precisa</b>.':'Para registrar el recorrido, Guau Guau necesita tu ubicación. En Ajustes toca <b>Ubicación</b> y elige <b>Siempre</b> (o "Al usar la app") para que siga grabando con la pantalla bloqueada.','Abrir Ajustes',async()=>{await NAT.abrirAjustes();},false);
 }
-function startWalk(mode,route){
-  if(mode==='gps'&&!W.active&&!LS.get('guau.ubicOk')){avisoUbicacion(()=>startWalk(mode,route));return;}
+function startWalk(mode,route,paso){
+  paso=paso||0;
+  if(mode==='gps'&&!W.active&&paso<1&&!LS.get('guau.ubicOk')){avisoUbicacion(()=>startWalk(mode,route,1));return;}
+  if(mode==='gps'&&!W.active&&paso<2&&ENERGIA_OK){NAT.energia.estado().then(e=>{W.energia=e;if(!e.sinRestricciones&&!LS.get('guau.energiaPreg'))avisoEnergia(e,()=>startWalk(mode,route,2));else startWalk(mode,route,2);},()=>startWalk(mode,route,2));return;}
   closeSheet(true);
   if(W.active){toast('Ya hay un paseo en curso');$('#live').hidden=false;return;}
   Object.assign(W,{active:true,paused:false,mode,elapsed:0,last:performance.now(),points:[],distance:0,route:route||null,pee:false,poop:false,started:Date.now(),follow:true,lastTs:0,gotFix:false,errShown:false,sim:null,lastBackup:0,dogId:S.dog.id,pausedMs:0,pauseStart:0,kf:null,cur:null,acc:null,lastMove:Date.now(),lastAccept:0,rejects:0,minReached:false,hiddenAt:0});
@@ -934,6 +977,7 @@ function startWalk(mode,route){
     ensureLiveMap(route?route.points[0]:DEFAULT_CENTER);drawGhost(route);resetTrack();
     if(route&&liveMap)liveMap.fitBounds(L.latLngBounds(route.points),{padding:[30,30]});
     setPill('Buscando señal GPS…','warn');startTracking();scheduleMinNotif();liveStart();
+    if(IS_ANDROID&&W.energia&&W.energia.gpsLimitado)setTimeout(()=>toast('Ahorro de batería activado: con la pantalla apagada Android puede bajar la precisión del GPS. Si puedes, desactívalo durante el paseo.',6000),1500);
   }
   clearInterval(W.timer);W.timer=setInterval(tick,250);requestWakeLock();updateLive();saveLive(true);
 }
@@ -1450,7 +1494,7 @@ function openCustomize(tab,rerender){
 /* =========================================================
    FAMILIAS (compartir un perro entre cuentas)
    ========================================================= */
-const famErr=e=>{const m=(e&&e.message)||'';if(/function|schema cache|does not exist|dog_members/i.test(m))return 'Falta actualizar la base de datos (migración v8).';if(/fetch|network/i.test(m))return 'Revisa tu conexión.';return m||'No se pudo completar.';};
+const famErr=e=>{const m=(e&&e.message)||'';if(/m[aá]ximo.*perros/i.test(m))return MSG_LLENO;if(/function|schema cache|does not exist|dog_members/i.test(m))return 'Falta actualizar la base de datos (migración v8).';if(/fetch|network/i.test(m))return 'Revisa tu conexión.';return m||'No se pudo completar.';};
 const fmtCode=c=>String(c||'').toUpperCase().replace(/^(.{3})(.{3})$/,'$1-$2');
 async function loadFamily(dogId){
   if(S.mode!=='cloud')return;
@@ -1484,6 +1528,7 @@ async function famInvite(){
 }
 function famJoin(){
   if(S.mode!=='cloud'){toast('Inicia sesión con tu cuenta para unirte a una familia');return;}
+  if(manadaLlena()){toast(MSG_LLENO,4500);return;}
   const sh=openSheet(`<div class="sheet-head"><span class="ic ic-pink" style="width:56px;height:56px;border-radius:18px">${I.heart}</span><div><h2>Unirme a una familia</h2><p class="sub">Escribe el código que te compartieron. El perro aparecerá en tu cuenta y podrás registrar sus paseos.</p></div></div>
     <input class="input otp-input" id="famCodeIn" maxlength="7" autocapitalize="characters" autocomplete="off" spellcheck="false" placeholder="ABC-123" aria-label="Código de familia">
     <button class="btn btn-orange btn-block" id="famJoinGo" style="margin-top:14px">Unirme</button>`);
@@ -1726,18 +1771,20 @@ document.addEventListener('click',async e=>{
   if(a==='customize'){closeSheet(true);openCustomize('avatar');return;}
   if(a==='customize-fondos'){closeSheet(true);openCustomize('fondos');return;}
   if(a==='fam-invite'){famInvite();return;}
-  if(a==='fam-join'){closeSheet(true);famJoin();return;}
+  if(a==='fam-join'){if(manadaLlena()){toast(MSG_LLENO,4500);return;}closeSheet(true);famJoin();return;}
   if(a==='fam-leave'){famLeave();return;}
   if(a==='test-notif'){testNotif();return;}
   if(a==='otp'){openEmailSheet();return;}
   if(a==='set-password'){openPasswordSheet();return;}
   if(a==='edit-routine'){closeSheet(true);openRoutineEditor(true);return;}
-  if(a==='add-dog'){closeSheet(true);openOnboarding('add');return;}
+  if(a==='add-dog'){if(manadaLlena()){toast(MSG_LLENO,4500);return;}closeSheet(true);openOnboarding('add');return;}
   if(a==='sync'){await flushQueue();renderSettings();if(!queueGet().length)toast('Todo sincronizado');return;}
   if(a==='to-login'){resetToLogin();return;}
   if(a==='logout'){logout();return;}
   if(a==='delete-account'){confirmDeleteAccount();return;}
   if(a==='privacy'){openPrivacy();return;}
+  if(a==='energia'){await NAT.energia.pedirSinRestricciones();let n=0;const iv=setInterval(()=>{n++;renderEnergia();if(n>30)clearInterval(iv);},1500);return;}
+  if(a==='energia-app'){NAT.energia.abrirAjustesApp();return;}
   if(t.dataset.ptab){setPtab(t.dataset.ptab);return;}
   if(t.dataset.famRemove){famLeave(t.dataset.famRemove);return;}
   if(t.dataset.remBefore!=null){setReminders({before:+t.dataset.remBefore});return;}
@@ -1767,7 +1814,7 @@ document.addEventListener('visibilitychange',()=>{
   if(W.active){requestWakeLock();
     if(W.mode==='gps'){if(!IS_APP)startTracking();if(liveMap){liveMap.invalidateSize();redrawTrack();}if(!IS_APP&&W.hiddenAt&&Date.now()-W.hiddenAt>15000)toast('El tiempo siguió corriendo. Con la pantalla apagada el GPS se pausa: usa el modo bolsillo.',5000);}
     W.hiddenAt=0;W.elapsed=walkElapsed();updateLive();}
-  else if(S.dog&&$('#scr-main').classList.contains('on')){renderProfile();refreshShared();}
+  else if(S.dog&&$('#scr-main').classList.contains('on')){renderProfile();refreshShared();if(S.view==='ajustes')renderEnergia();}
 });
 let rsz;window.addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(S.view==='stats'&&S.dog)renderStats();},150);});
 
@@ -1797,6 +1844,27 @@ function avisoUbicacion(seguir){
   $('[data-close]',sh).onclick=()=>closeSheet();
   $('#ubicOk',sh).onclick=()=>{LS.set('guau.ubicOk',1);closeSheet(true);seguir();};
 }
+function avisoEnergia(e,seguir){
+  const tip=marcaTip(e.fabricante);
+  const sh=openSheet(`<div class="sheet-head"><span class="ic ic-green" style="width:56px;height:56px;border-radius:18px">${I.route}</span><div><h2>Que el GPS no se corte</h2><p class="sub">Para que el paseo se grabe completo, aunque uses el ahorro de batería</p></div></div>
+    <p style="font-weight:600;color:var(--ink-2)">Android puede pausar las apps para ahorrar batería y cortar la ruta del paseo. Permite que Guau Guau funcione <b>sin restricciones</b>: igual solo usa el GPS mientras paseas.</p>
+    ${tip?`<div class="alert info" style="margin-top:12px">${I.info}<span>${tip} <button type="button" class="link-btn" id="enApp">Abrir ajustes de Guau Guau</button></span></div>`:''}
+    <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" id="enNo">Ahora no</button><button class="btn btn-orange" id="enSi">Permitir</button></div>`);
+  let hecho=false,poll=null;const listo=()=>{if(hecho)return;hecho=true;clearInterval(poll);LS.set('guau.energiaPreg',1);closeSheet(true);seguir();};
+  $('#enNo',sh).onclick=listo;
+  const app=$('#enApp',sh);if(app)app.onclick=()=>NAT.energia.abrirAjustesApp();
+  $('#enSi',sh).onclick=async()=>{LS.set('guau.energiaPreg',1);await NAT.energia.pedirSinRestricciones();
+    const b=$('#enSi',sh);if(b){b.textContent='Empezar paseo';b.onclick=listo;}
+    let n=0;clearInterval(poll);poll=setInterval(async()=>{n++;try{const s2=await NAT.energia.estado();if(s2.sinRestricciones){W.energia=s2;listo();}}catch(err){}if(n>90)clearInterval(poll);},1000);};
+}
+function renderEnergia(){
+  const box=$('#energiaFila');if(!box||!ENERGIA_OK)return;
+  NAT.energia.estado().then(e=>{if(!box.isConnected)return;const tip=marcaTip(e.fabricante);
+    box.innerHTML=(e.sinRestricciones?`<div class="li static"><span class="ic ic-green">${I.check}</span><span>GPS sin cortes<small>Guau Guau puede funcionar sin restricciones de batería</small></span></div>`
+      :`<button class="li" data-action="energia"><span class="ic ic-orange">${I.alert}</span><span>Permitir que el GPS no se corte<small>Android puede pausar el paseo para ahorrar batería</small></span><span class="chev">${I.chev}</span></button>`)
+      +(tip?`<p class="hint" style="margin-top:6px">${tip} <button type="button" class="link-btn" data-action="energia-app">Abrir ajustes de Guau Guau</button></p>`:'')
+      +(e.ahorroActivo?`<p class="hint" style="margin-top:6px">El ahorro de batería está activado: con la pantalla apagada el GPS puede ser menos preciso.</p>`:'');},()=>{});
+}
 function confirmDeleteAccount(){
   if(W.active){toast('Termina el paseo en curso antes de eliminar tu cuenta.');return;}
   const compartidos=S.dogs.filter(d=>isOwner(d)&&S.fam&&S.fam.dogId===d.id&&(S.fam.members||[]).length>1).length;
@@ -1815,7 +1883,7 @@ function openPrivacy(){
     <iframe class="doc-frame" src="${PRIVACIDAD_URL}" title="Política de privacidad"></iframe>`);
   $('[data-close]',sh).onclick=()=>closeSheet();
 }
-function resetToLogin(){famUnsubscribe();closeSheet(true);closeLightbox();S.photos=[];S.mode=null;S.user=null;S.dog=null;S.dogs=[];S.walks=[];S.routes=[];$('#live').hidden=true;show('login');}
+function resetToLogin(){LS.del('guau.manada');famUnsubscribe();closeSheet(true);closeLightbox();S.photos=[];S.mode=null;S.user=null;S.dog=null;S.dogs=[];S.walks=[];S.routes=[];$('#live').hidden=true;show('login');}
 async function logout(){
   if(S.mode==='cloud'&&sb){try{await sb.auth.signOut();}catch(e){}}
   resetToLogin();
@@ -1825,7 +1893,7 @@ async function enterCloud(user){
   if(entering||(S.user&&S.user.id===user.id))return;entering=true;
   S.mode='cloud';const md=user.user_metadata||{};
   S.user={id:user.id,email:user.email,name:md.full_name||md.name||user.email,avatar:md.avatar_url||md.picture||''};
-  show('loading');
+  pintarCarga();show('loading');
   try{
     S.dogs=await DB.listDogs();
     if(!S.dogs.length){openOnboarding('first');}
@@ -1834,7 +1902,7 @@ async function enterCloud(user){
   entering=false;
 }
 async function boot(){
-  buildScenes();bindAssets();
+  buildScenes();pintarCarga();bindAssets();
   if(IS_APP){$('#googleBtn').hidden=true;const o=$('#otpBtn');o.classList.remove('btn-white');o.classList.add('btn-orange');}
   if(!CONFIG_OK){$('#configWarn').hidden=false;show('login');return;}
   try{

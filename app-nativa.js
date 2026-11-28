@@ -20,6 +20,7 @@
   var HTTP = plugins.CapacitorHttp;
   var LIVE = plugins.SalchiLive; // actividad en vivo (pantalla bloqueada / isla dinámica, solo iPhone)
   var APP = plugins.App;         // botón "volver" de Android
+  var ENERGIA = plugins.Energia; // ahorro de batería (solo Android)
   var plataforma = esApp && typeof cap.getPlatform === "function" ? cap.getPlatform() : "web"; // "ios", "android" o "web"
 
   /* ------------------------------------------------------------------ */
@@ -30,6 +31,21 @@
     if (!APP || typeof APP.addListener !== "function") return;
     APP.addListener("backButton", function () { try { fn(); } catch (e) { console.error("[AppNativa] volver:", e); } });
   }
+  /* ------------------------------------------------------------------ */
+  /* Ahorro de batería (Android): que el GPS del paseo no se corte       */
+  /* ------------------------------------------------------------------ */
+  var energia = {
+    disponible: !!ENERGIA,
+    // {sinRestricciones, ahorroActivo, gpsLimitado, fabricante}
+    estado: function () {
+      return ENERGIA ? ENERGIA.estado() : Promise.resolve({ sinRestricciones: true, ahorroActivo: false, gpsLimitado: false, fabricante: "" });
+    },
+    // Aviso de Android: "¿Permitir que la app se ejecute siempre en segundo plano?"
+    pedirSinRestricciones: function () { return ENERGIA ? ENERGIA.pedirSinRestricciones() : Promise.resolve(); },
+    // Ajustes de la app (batería, inicio automático… según la marca)
+    abrirAjustesApp: function () { return ENERGIA ? ENERGIA.abrirAjustesApp() : Promise.resolve(); }
+  };
+
   // Manda la app al fondo sin cerrarla (así un paseo en curso sigue grabando)
   function minimizar() {
     return APP && typeof APP.minimizeApp === "function" ? APP.minimizeApp() : Promise.resolve();
@@ -260,6 +276,7 @@
     plataforma: plataforma,
     alVolver: alVolver,
     minimizar: minimizar,
+    energia: energia,
     seguirUbicacion: seguirUbicacion,
     abrirAjustes: abrirAjustes,
     pedirPermisoAvisos: pedirPermisoAvisos,
