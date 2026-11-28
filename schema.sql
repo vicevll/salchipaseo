@@ -621,3 +621,69 @@ begin
   update public.dog_invites set used_by = auth.uid(), used_at = now() where code = inv.code;
   return inv.dog_id;
 end $$;
+
+
+-- =====================================================================
+--  Guau Guau · migración v13
+--  · Paseo en vivo: la familia ve el recorrido en tiempo real mientras alguien pasea
+--  · Sin correo de confirmación: activa las cuentas que quedaron esperando ese correo
+--  Supabase → SQL Editor → New query → pega todo → Run.
+--  Es seguro ejecutarla más de una vez. Requiere la migración v12.
+-- =====================================================================
+
+-- Una fila por paseo en curso (perro + quien pasea). Se borra al terminar.
+create table if not exists public.paseos_en_vivo (
+  dog_id       uuid not null references public.dogs(id) on delete cascade,
+  user_id      uuid not null default auth.uid() references auth.users(id) on delete cascade,
+  nombre       text check (nombre is null or char_length(nombre) <= 60),
+  started_at   timestamptz not null,
+  updated_at   timestamptz not null default now(),
+  paused       boolean not null default false,
+  paused_ms    bigint not null default 0,
+  pause_start  timestamptz,
+  distance_m   integer not null default 0 check (distance_m between 0 and 500000),
+  points       jsonb not null default '[]'::jsonb
+               check (jsonb_typeof(points) = 'array' and jsonb_array_length(points) <= 2000),
+  primary key (dog_id, user_id)
+);
+alter table public.paseos_en_vivo enable row level security;
+grant select, insert, update, delete on public.paseos_en_vivo to authenticated;
+
+-- Ve el paseo en vivo solo la familia del perro; cada uno publica y borra solo el suyo
+drop policy if exists "vivo: ver familia" on public.paseos_en_vivo;
+create policy "vivo: ver familia" on public.paseos_en_vivo for select to authenticated
+  using (public.es_de_mi_familia(dog_id));
+drop policy if exists "vivo: publicar" on public.paseos_en_vivo;
+create policy "vivo: publicar" on public.paseos_en_vivo for insert to authenticated
+  with check (user_id = (select auth.uid()) and public.es_de_mi_familia(dog_id));
+drop policy if exists "vivo: actualizar" on public.paseos_en_vivo;
+create policy "vivo: actualizar" on public.paseos_en_vivo for update to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()) and public.es_de_mi_familia(dog_id));
+drop policy if exists "vivo: borrar" on public.paseos_en_vivo;
+create policy "vivo: borrar" on public.paseos_en_vivo for delete to authenticated
+  using (user_id = (select auth.uid()));
+
+-- La hora de la última señal la pone el servidor (no el reloj del teléfono)
+drop trigger if exists vivo_touch on public.paseos_en_vivo;
+create trigger vivo_touch before update on public.paseos_en_vivo
+  for each row execute function public.touch_updated_at();
+
+-- Tiempo real: avisar a la familia en cuanto cambia el recorrido
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (select 1 from pg_publication_tables
+                      where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'paseos_en_vivo') then
+    alter publication supabase_realtime add table public.paseos_en_vivo;
+  end if;
+end $$;
+
+-- Sin correo de confirmación: las cuentas que quedaron esperando ese correo pueden entrar
+do $$
+begin
+  if exists (select 1 from information_schema.columns
+              where table_schema = 'auth' and table_name = 'users' and column_name = 'email_confirmed_at') then
+    execute 'update auth.users set email_confirmed_at = now() where email_confirmed_at is null and email is not null';
+  end if;
+end $$;

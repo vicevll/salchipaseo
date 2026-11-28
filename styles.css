@@ -733,12 +733,14 @@ button.pg-hptxt svg{width:15px;height:15px;color:#B9C3C6}
 .sync-card .li{border-bottom:0;padding-top:0}
 
 /* Aviso: alguien de la familia paseó al perro */
-.fam-banner{position:fixed;left:50%;top:calc(10px + var(--safe-t));z-index:120;width:min(calc(100% - 20px),calc(var(--app-w) - 20px));display:flex;align-items:center;gap:12px;background:var(--ink);color:#fff;border-radius:22px;padding:10px 12px;box-shadow:0 12px 30px rgba(30,26,29,.35);transform:translate(-50%,calc(-100% - 30px));transition:transform .45s cubic-bezier(.2,.9,.25,1.15);cursor:pointer}
-.fam-banner.on{transform:translate(-50%,0)}
+.fam-banner{position:fixed;left:50%;top:calc(10px + var(--safe-t));z-index:120;width:min(calc(100% - 20px),calc(var(--app-w) - 20px));display:flex;align-items:center;gap:12px;background:var(--ink);color:#fff;border-radius:22px;padding:10px 12px;box-shadow:0 12px 30px rgba(30,26,29,.35);transform:translate(-50%,calc(-100% - 24px - var(--safe-t)));opacity:0;visibility:hidden;touch-action:none;user-select:none;-webkit-user-select:none;transition:transform .45s cubic-bezier(.2,.9,.25,1.15),opacity .3s,visibility 0s linear .45s;cursor:pointer}
+.fam-banner.on{transform:translate(-50%,0);opacity:1;visibility:visible;transition:transform .45s cubic-bezier(.2,.9,.25,1.15),opacity .2s,visibility 0s}
 .fam-banner img{width:44px;height:44px;border-radius:50%;background:var(--yellow);object-fit:cover;flex:none}
 .fam-banner>div{flex:1;min-width:0}
 .fam-banner b{display:block;font-family:var(--f-display);font-weight:600;font-size:16px;line-height:1.15}
 .fam-banner small{display:block;font-size:13px;font-weight:700;opacity:.75;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fam-banner .fb-x{flex:none;width:30px;height:30px;margin:-4px -4px -4px -6px;display:grid;place-items:center;border-radius:50%;color:#fff;opacity:.7}
+.fam-banner .fb-x svg{width:16px;height:16px}
 .fam-banner .fb-btn{flex:none;background:var(--yellow);color:var(--ink);border-radius:999px;padding:8px 12px;font-weight:900;font-size:13px}
 
 /* Ver la ruta de un paseo */
@@ -817,3 +819,49 @@ button.pg-hptxt svg{width:15px;height:15px;color:#B9C3C6}
 .ws-pack .ws-dog+.ws-dog{margin-left:-1.5%}
 .ws-pack.n3 .ws-dog:nth-child(2),.ws-pack.n4 .ws-dog:nth-child(odd){margin-bottom:5px}
 .li.dim,.opt.dim{opacity:.55}
+
+/* =========================================================
+   v13 · Paseo en vivo, repetición, menú del perro y solo vertical
+   ========================================================= */
+/* Píldora: alguien de la familia está paseando ahora */
+.vivo-pill{position:fixed;left:50%;bottom:calc(132px + var(--safe-b));transform:translateX(-50%);z-index:35;display:flex;align-items:center;gap:10px;max-width:min(calc(100% - 24px),calc(var(--app-w) - 24px));background:var(--ink);color:#fff;border-radius:999px;padding:6px 8px 6px 6px;box-shadow:0 10px 26px rgba(30,26,29,.3);cursor:pointer;animation:vpIn .35s cubic-bezier(.2,.9,.25,1.15)}
+.vivo-pill[hidden]{display:none}
+@keyframes vpIn{from{transform:translate(-50%,20px);opacity:0}}
+.vivo-pill img{width:38px;height:38px;border-radius:50%;background:var(--yellow);object-fit:cover;flex:none}
+.vivo-pill span{min-width:0;display:flex;flex-direction:column}
+.vivo-pill b{font-family:var(--f-display);font-weight:600;font-size:15px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vivo-pill small{font-size:12.5px;font-weight:800;opacity:.8;white-space:nowrap;display:flex;align-items:center;gap:6px}
+.vivo-pill em{font-style:normal;flex:none;background:var(--yellow);color:var(--ink);border-radius:999px;padding:7px 12px;font-weight:900;font-size:13px}
+.vivo-dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#FF3B30;flex:none;box-shadow:0 0 0 0 rgba(255,59,48,.6);animation:vivoPulse 1.6s infinite}
+@keyframes vivoPulse{70%{box-shadow:0 0 0 7px rgba(255,59,48,0)}100%{box-shadow:0 0 0 0 rgba(255,59,48,0)}}
+.vivo-pill.stale .vivo-dot,.vv-sub.stale .vivo-dot,.vv-sub.fin .vivo-dot{background:#9A9196;animation:none}
+.vv-sub{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.vivo-map{height:min(52vh,420px)}
+.vv-centrar{margin:-4px auto 12px;display:flex}
+/* Repetir un paseo terminado */
+.replay{display:flex;align-items:center;gap:10px;margin:-4px 0 14px}
+.replay[hidden]{display:none}
+.rp-btn{flex:none;width:42px;height:42px;border:0;border-radius:50%;background:var(--orange);color:#fff;display:grid;place-items:center;box-shadow:0 3px 0 var(--orange-d)}
+.rp-btn svg{width:20px;height:20px}
+.replay input[type=range]{flex:1;min-width:0;accent-color:var(--orange)}
+.replay span{flex:none;font-weight:800;font-size:13px;color:var(--ink-2);font-variant-numeric:tabular-nums;min-width:86px;text-align:right}
+/* Menú del perro (mantener apretado) */
+[data-switch-dog]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;transition:transform .18s,background-color .18s}
+[data-switch-dog] img{-webkit-user-drag:none;pointer-events:none}
+[data-switch-dog].lp-press{transform:scale(.97);background-color:var(--cream)}
+.lp-hint{margin:-6px 0 8px}
+.dm-head{align-items:center}
+.dm-av{width:64px;height:64px;border-radius:50%;overflow:hidden;background:var(--yellow);flex:none;border:3px solid #fff;box-shadow:0 3px 0 var(--line)}
+.dm-av img{width:100%;height:100%;object-fit:cover}
+.dm-list{display:flex;flex-direction:column;gap:2px}
+.dm-ic{display:grid;place-items:center}
+.dm-ic svg{width:24px;height:24px}
+.dm-danger b{color:var(--red)}
+.dm-danger .dm-ic{background:#FDE3E1;color:var(--red)}
+/* Solo vertical: si giran el teléfono */
+.rotar{display:none}
+body.girado .rotar{display:flex;position:fixed;inset:0;z-index:9999;background:var(--yellow);flex-direction:column;align-items:center;justify-content:center;gap:10px;text-align:center;padding:24px}
+.rotar svg{width:64px;height:64px;color:var(--ink);animation:rotarTel 2.2s ease-in-out infinite}
+@keyframes rotarTel{0%,30%{transform:rotate(-90deg)}60%,100%{transform:rotate(0)}}
+.rotar b{font-family:var(--f-display);font-weight:600;font-size:24px}
+.rotar span{font-weight:700;color:var(--ink-2)}

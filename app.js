@@ -175,6 +175,8 @@ const DB={
   async familia(dogId){if(S.mode!=='cloud')return null;const {data,error}=await sb.rpc('familia',{perro:dogId});if(error)throw error;return data||[];},
   async invitar(dogId){const {data,error}=await sb.rpc('crear_invitacion',{perro:dogId});if(error)throw error;return data;},
   async unirme(code){const {data,error}=await sb.rpc('unirme_a_familia',{codigo:code});if(error)throw error;return data;},
+  async listVivos(dogIds){if(S.mode!=='cloud'||!dogIds.length)return [];const {data,error}=await sb.from('paseos_en_vivo').select('*').in('dog_id',dogIds);if(error)throw error;return data||[];},
+  async vivo(dogId,userId){const {data,error}=await sb.from('paseos_en_vivo').select('*').eq('dog_id',dogId).eq('user_id',userId);if(error)throw error;return (data||[])[0]||null;},
   async salirFamilia(dogId,userId){chk(await sb.from('dog_members').delete().eq('dog_id',dogId).eq('user_id',userId));},
   async resetWalks(dogId){if(S.mode==='demo'){MEM.walks=MEM.walks.filter(w=>w.dogId!==dogId);return;}chk(await sb.from('walks').delete().eq('dog_id',dogId));},
   async deleteWalk(id){if(S.mode==='demo'){MEM.walks=MEM.walks.filter(w=>w.id!==id);return;}chk(await sb.from('walks').delete().eq('id',id));},
@@ -520,7 +522,7 @@ function openSheet(html,opts={}){
   if(!opts.sticky)$('.overlay',layer).onclick=()=>closeSheet();
   return sh;
 }
-function closeSheet(silent){const layer=$('#layer');if(!layer.innerHTML)return;const cb=sheetClose;sheetClose=null;layer.innerHTML='';if(cb&&!silent)cb();}
+function closeSheet(silent){const layer=$('#layer');if(!layer.innerHTML)return;const cb=sheetClose;sheetClose=null;layer.innerHTML='';cerrarVisorVivo();if(cb&&!silent)cb();}
 document.addEventListener('keydown',e=>{const lb=$('#lightbox');if(lb&&!lb.hidden&&!$('#layer').innerHTML){if(e.key==='Escape')closeLightbox();if(e.key==='ArrowRight'&&lbIdx<lbList.length-1){lbIdx++;renderLightbox();}if(e.key==='ArrowLeft'&&lbIdx>0){lbIdx--;renderLightbox();}return;}if(e.key==='Escape'&&!$('#layer .sheet.sticky'))closeSheet();});
 function confirmSheet(title,text,okLabel,onOk,danger=true,onCancel=null,cancelLabel='Cancelar'){
   const sh=openSheet(`<h2>${esc(title)}</h2><p class="sub" style="margin:8px 0 18px">${text}</p><div class="row-actions"><button class="btn btn-ghost" id="cfNo">${esc(cancelLabel)}</button><button class="btn ${danger?'btn-red':'btn-orange'}" id="cfOk">${esc(okLabel)}</button></div>`,{onClose:onCancel});
@@ -758,7 +760,7 @@ function renderSettings(){
     <div class="card"><div class="acct">${avatar}<div style="min-width:0"><b>${esc(u.name||'Invitado')}</b><small>${S.mode==='demo'?'Modo demo · sin cuenta':esc(u.email||'')}</small></div></div>
       ${S.mode==='cloud'?`<div class="list" style="margin-top:12px"><button class="li" data-action="set-password"><span class="ic ic-orange">${I.lock}</span><span>Contraseña para la app<small>${IS_APP?'Cámbiala cuando quieras':'Para entrar en la app del teléfono con tu correo'}</small></span><span class="chev">${I.chev}</span></button></div>`:''}
       ${S.mode==='demo'?(IS_APP?`<button class="btn btn-orange btn-block" style="margin-top:14px" data-action="to-login">Iniciar sesión</button>`:`<button class="btn-google" style="margin-top:14px" data-action="to-login">${$('#googleBtn svg').outerHTML}Iniciar sesión con Google</button>`):''}</div>
-    <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.paw}</span><h3>Mis perros</h3></div><div class="list">
+    <div class="card"><div class="ctitle"><span class="ic ic-orange">${I.paw}</span><h3>Mis perros</h3></div><p class="hint lp-hint">Mantén apretado un perro para seleccionarlo, editarlo, unirlo a una familia o borrarlo.</p><div class="list">
       ${S.dogs.map(d=>`<button class="li ${d.id===S.dog.id?'on':''}" data-switch-dog="${d.id}"><img src="${avatarSrc(d)}" alt=""><span>${esc(d.name)}<small>${ageLabel(d)} · ${nf1.format(d.weight)} kg${S.mode==='cloud'&&!isOwner(d)?' · familia':''}</small></span><span class="chev">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
       <button class="li${manadaLlena()?' dim':''}" data-action="add-dog"><span class="ic ic-green">${I.plus}</span><span>Agregar otro perro<small>${S.dogs.length} de ${MAX_PERROS} perros${manadaLlena()?' · llegaste al máximo':''}</small></span></button>
       <button class="li" data-action="customize"><span class="ic ic-orange">${I.star}</span><span>Avatar y fondo de ${esc(S.dog.name)}<small>NV ${levelInfo().level} · ${fondosHasta(levelInfo().level).length} de ${FONDOS.length} fondos desbloqueados</small></span><span class="chev">${I.chev}</span></button>
@@ -783,7 +785,7 @@ function renderSettings(){
       <button class="li" data-action="privacy"><span class="ic ic-blue">${I.lock}</span><span>Privacidad<small>Qué datos guardamos y para qué</small></span><span class="chev">${I.chev}</span></button>
       <button class="li" data-action="logout"><span class="ic ic-yellow">${I.out}</span><span>${S.mode==='demo'?'Salir del modo demo':'Cerrar sesión'}</span></button></div></div>
     ${S.mode==='cloud'?`<div class="card"><div class="list"><button class="li danger" data-action="delete-account"><span class="ic" style="background:#FDE3E1;color:var(--red)">${I.trash}</span><span>Eliminar mi cuenta<small>Borra tu cuenta, perros, paseos y fotos</small></span></button></div></div>`:''}
-    <p class="disclaimer">Guau Guau · v12${IS_APP?' · '+(IS_ANDROID?'Android':'iPhone'):''}</p>`;
+    <p class="disclaimer">Guau Guau · v13${IS_APP?' · '+(IS_ANDROID?'Android':'iPhone'):''}</p>`;
   bindAssets($('#settingsBody'));
   if(S.mode==='cloud'){renderFamilyCard();if(!S.fam||S.fam.dogId!==S.dog.id)loadFamily(S.dog.id);}
   renderEnergia();
@@ -871,15 +873,58 @@ function openEditDog(){
     <div class="row-actions" style="margin-top:16px"><button class="btn btn-ghost" data-close>Cancelar</button><button class="btn btn-orange" id="edSave">Guardar</button></div>
     <button class="btn btn-white btn-block btn-sm" data-action="customize" style="margin-top:12px">${I.star}Cambiar avatar y fondo</button>
     <button class="btn btn-white btn-block btn-sm" data-action="reset-stats" style="margin-top:8px">${I.sync}Reiniciar estadísticas</button>
-    ${!isOwner(S.dog)?`<button class="btn btn-white btn-block btn-sm" data-action="fam-leave" style="margin-top:8px;color:var(--red)">Salir de la familia de ${esc(S.dog.name)}</button>`:S.dogs.length>1?`<button class="btn btn-white btn-block btn-sm" id="edDel" style="margin-top:8px;color:var(--red)">${I.trash}Eliminar a ${esc(S.dog.name)}</button>`:''}`);
+    ${!isOwner(S.dog)?`<button class="btn btn-white btn-block btn-sm" data-action="fam-leave" style="margin-top:8px;color:var(--red)">Salir de la familia de ${esc(S.dog.name)}</button>`:`<button class="btn btn-white btn-block btn-sm" id="edDel" style="margin-top:8px;color:var(--red)">${I.trash}Eliminar a ${esc(S.dog.name)}</button>`}`);
   const f=$('#edForm',sh);mountDogForm(f,S.dog,{raza:true});$('[data-close]',sh).onclick=()=>closeSheet();
   $('#edSave',sh).onclick=async()=>{const d=readDogForm(f,S.dog);if(!d)return;const b=$('#edSave',sh);b.disabled=true;b.innerHTML='<span class="spin"></span>';
     if(d.breed==='otra'&&(S.dog.breed!=='otra'||S.dog.breedName.toLowerCase()!==d.breedName.toLowerCase()))DB.pedirRaza(d.breedName);
     try{const saved=await DB.saveDog(d);Object.assign(S.dog,saved);const i=S.dogs.findIndex(x=>x.id===saved.id);if(i>=0)S.dogs[i]=S.dog;closeSheet();await ensureAvatars([S.dog]);renderAll();scheduleReminders(true);toast('Perfil actualizado');}catch(e){console.error(e);b.disabled=false;b.textContent='Guardar';toast(errPerro(e),4500);}};
-  const del=$('#edDel',sh);if(del)del.onclick=()=>confirmSheet(`¿Eliminar a ${S.dog.name}?`,'Se borran su perfil y todos sus paseos. Las rutas se conservan.','Eliminar',async()=>{const id=S.dog.id;await DB.deleteDog(id);S.dogs=S.dogs.filter(x=>x.id!==id);await selectDog(S.dogs[0].id);renderAll();toast('Perfil eliminado');});
+  const del=$('#edDel',sh);if(del)del.onclick=()=>confirmBorrarPerro(S.dog);
 }
+/* Mantener apretado un perro (en Ajustes o en «Tus perros») abre su menú */
+function openDogMenu(id){
+  const d=S.dogs.find(x=>x.id===id);if(!d)return;
+  const own=isOwner(d),sel=S.dog&&S.dog.id===id;
+  const sh=openSheet(`<div class="sheet-head dm-head"><span class="dm-av"><img src="${avatarSrc(d)}" alt=""></span><div style="min-width:0"><h2>${esc(d.name)}</h2><p class="sub">${esc(razaNombre(d))} · ${ageLabel(d)} · ${nf1.format(d.weight)} kg${S.mode==='cloud'&&!own?' · familia':''}</p></div></div>
+    <div class="dm-list">
+      <button class="opt" data-dm="sel"><span class="thumb dm-ic ic-green">${I.check}</span><span><b>${sel?'Seleccionado':'Seleccionar'}</b><small>${sel?'Es el perro que estás viendo':'Ver sus paseos, metas y rutina'}</small></span></button>
+      <button class="opt" data-dm="edit"><span class="thumb dm-ic ic-orange">${I.pencil}</span><span><b>Editar</b><small>Nombre, raza, peso y fecha de nacimiento</small></span></button>
+      <button class="opt" data-dm="fam"><span class="thumb dm-ic ic-pink">${I.heart}</span><span><b>Unir a una familia</b><small>Crea un código para que otra persona lo pasee contigo</small></span></button>
+      <button class="opt dm-danger" data-dm="del"><span class="thumb dm-ic">${I.trash}</span><span><b>${own?'Borrar':'Quitar de mi cuenta'}</b><small>${own?'Se borran su perfil, sus paseos y sus fotos':'Sales de su familia; sus paseos quedan para ellos'}</small></span></button>
+    </div>`);
+  $$('[data-dm]',sh).forEach(b=>b.onclick=e=>{e.stopPropagation();dogMenuAccion(b.dataset.dm,d);});
+}
+async function dogMenuAccion(a,d){
+  const elegir=async()=>{if(!S.dog||S.dog.id!==d.id){await selectDog(d.id);renderAll();}};
+  if(a==='sel'){closeSheet(true);const ya=S.dog&&S.dog.id===d.id;await elegir();if(!ya)toast(`Ahora ves a ${d.name}`);return;}
+  if(a==='edit'){closeSheet(true);await elegir();openEditDog();return;}
+  if(a==='fam'){if(S.mode!=='cloud'){toast('Inicia sesión con tu cuenta para compartir a tu perro con tu familia',4000);return;}closeSheet(true);await elegir();famInvite();return;}
+  if(a==='del'){
+    if(W.active&&W.dogId===d.id){toast(`Termina el paseo de ${d.name} antes de borrarlo`);return;}
+    if(!isOwner(d)){closeSheet(true);await elegir();famLeave();return;}
+    confirmBorrarPerro(d);}
+}
+function confirmBorrarPerro(d){
+  const fam=S.mode==='cloud'&&S.fam&&S.fam.dogId===d.id&&(S.fam.members||[]).length>1;
+  confirmSheet(`¿Borrar a ${d.name}?`,`Se borran para siempre su perfil, sus paseos y sus fotos. Las rutas se conservan.${fam?' Su familia también dejará de verlo.':''}`,'Borrar',async()=>{
+    try{await DB.deleteDog(d.id);}catch(e){console.error(e);toast('No se pudo borrar. Revisa tu conexión.',4000);return;}
+    S.dogs=S.dogs.filter(x=>x.id!==d.id);famSubscribe();
+    if(!S.dogs.length){S.dog=null;S.walks=[];S.photos=[];LS.del('guau.manada');toast(`${d.name} fue borrado`);openOnboarding('first');return;}
+    if(!S.dog||S.dog.id===d.id)await selectDog(S.dogs[0].id);renderAll();toast(`${d.name} fue borrado`);});
+}
+const LP={t:null,x:0,y:0,el:null,supr:false,fired:0};
+function lpSoltar(){clearTimeout(LP.t);LP.t=null;if(LP.el)LP.el.classList.remove('lp-press');LP.el=null;}
+document.addEventListener('pointerdown',e=>{
+  LP.supr=false;const el=e.target.closest('[data-switch-dog]');if(!el||(e.pointerType==='mouse'&&e.button!==0))return;
+  lpSoltar();LP.el=el;LP.x=e.clientX;LP.y=e.clientY;el.classList.add('lp-press');
+  LP.t=setTimeout(()=>{const id=el.dataset.switchDog;lpSoltar();LP.supr=true;LP.fired=Date.now();try{navigator.vibrate&&navigator.vibrate(12);}catch(_){}openDogMenu(id);},480);
+},{passive:true});
+document.addEventListener('pointermove',e=>{if(LP.t&&(Math.abs(e.clientX-LP.x)>10||Math.abs(e.clientY-LP.y)>10))lpSoltar();},{passive:true});
+['pointerup','pointercancel'].forEach(ev=>document.addEventListener(ev,lpSoltar,{passive:true}));
+document.addEventListener('scroll',lpSoltar,{passive:true,capture:true});
+document.addEventListener('contextmenu',e=>{const el=e.target.closest('[data-switch-dog]');if(!el)return;e.preventDefault();if(Date.now()-LP.fired<1200)return;lpSoltar();LP.supr=true;LP.fired=Date.now();openDogMenu(el.dataset.switchDog);});
+document.addEventListener('click',e=>{if(LP.supr){LP.supr=false;e.stopPropagation();e.preventDefault();}},true);
 function openDogSwitch(){
-  const sh=openSheet(`<h2>Tus perros</h2><p class="sub" style="margin-bottom:14px">Elige de quién es el paseo.</p>
+  const sh=openSheet(`<h2>Tus perros</h2><p class="sub" style="margin-bottom:14px">Elige de quién es el paseo. Mantén apretado uno para más opciones.</p>
     ${S.dogs.map(d=>`<button class="opt" data-switch-dog="${d.id}"><span class="thumb" style="background:var(--yellow)"><img src="${avatarSrc(d)}" alt="" style="width:100%;height:100%;object-fit:cover"></span><span><b>${esc(d.name)}</b><small>${ageLabel(d)} · ${nf1.format(d.weight)} kg</small></span><span class="go-ic">${d.id===S.dog.id?I.check:I.chev}</span></button>`).join('')}
     <button class="opt${manadaLlena()?' dim':''}" data-action="add-dog"><span class="thumb" style="background:var(--green-3);display:grid;place-items:center;color:var(--green-d)">${I.plus}</span><span><b>Agregar otro perro</b><small>${manadaLlena()?`Máximo ${MAX_PERROS} perros por cuenta`:`Cada uno tiene sus paseos y metas · ${S.dogs.length} de ${MAX_PERROS}`}</small></span></button>${S.mode==='cloud'?`<button class="opt${manadaLlena()?' dim':''}" data-action="fam-join"><span class="thumb" style="background:#FDE6F0;display:grid;place-items:center;color:#C0306A">${I.heart}</span><span><b>Unirme a una familia</b><small>Usa el código que te compartieron</small></span></button>`:''}`);
   bindAssets(sh);
@@ -976,7 +1021,7 @@ function startWalk(mode,route,paso){
   else{
     ensureLiveMap(route?route.points[0]:DEFAULT_CENTER);drawGhost(route);resetTrack();
     if(route&&liveMap)liveMap.fitBounds(L.latLngBounds(route.points),{padding:[30,30]});
-    setPill('Buscando señal GPS…','warn');startTracking();scheduleMinNotif();liveStart();
+    setPill('Buscando señal GPS…','warn');startTracking();scheduleMinNotif();liveStart();vivoEmpezar();
     if(IS_ANDROID&&W.energia&&W.energia.gpsLimitado)setTimeout(()=>toast('Ahorro de batería activado: con la pantalla apagada Android puede bajar la precisión del GPS. Si puedes, desactívalo durante el paseo.',6000),1500);
   }
   clearInterval(W.timer);W.timer=setInterval(tick,250);requestWakeLock();updateLive();saveLive(true);
@@ -1021,7 +1066,7 @@ function onFix(pos){
   if(dt>0&&d/dt>GPS.maxSpeed){W.rejects++;if(W.rejects<4){updateTail();updatePill();return;}W.kf=new Kalman(GPS.q);W.cur=W.kf.process(c.latitude,c.longitude,acc,ts);}
   W.rejects=0;acceptPoint(W.cur,ts,true);updatePill();
 }
-function acceptPoint(p,ts,moved){W.points.push(r6(p));W.lastTs=ts;W.lastAccept=Date.now();if(moved)W.lastMove=Date.now();redrawTrack();saveLive(false);liveTick(false);}
+function acceptPoint(p,ts,moved){W.points.push(r6(p));W.lastTs=ts;W.lastAccept=Date.now();if(moved)W.lastMove=Date.now();redrawTrack();saveLive(false);liveTick(false);vivoPublicar(false);}
 function redrawTrack(){const s=cleanTrack(W.points);W.distance=pathLen(s);if(trackFg){trackBg.setLatLngs(s);trackFg.setLatLngs(s);}updateTail();}
 function updateTail(){if(!tailLine)return;const last=W.points[W.points.length-1];tailLine.setLatLngs(last&&W.cur&&!W.paused&&W.mode==='gps'?[last,W.cur]:[]);}
 function onGpsErr(err){if(!W.active)return;if(err.code===3&&W.gotFix)return;gpsUnavailable(err.code===1?'Sin permiso de ubicación':err.code===3?'El GPS está tardando':'No encontramos tu ubicación');}
@@ -1053,10 +1098,10 @@ function updateLive(){
   if(!W.minReached&&mins>=min){W.minReached=true;cancelMinNotif();saveLive(true);$('#lane').classList.add('reached');toast(`¡Mínimo cumplido! ${min} min de paseo con ${S.dog.name}`,3500);try{navigator.vibrate&&navigator.vibrate([180,90,180]);}catch(e){}}
   const pk=$('#pocket');if(pk&&!pk.hidden){$('#pkTime').textContent=fmtClock(el);$('#pkInfo').textContent=`${nf2.format(W.distance/1000)} km · ${Math.floor(mins)} de ${min} min`;}
 }
-function togglePause(){if(!W.active)return;W.paused=!W.paused;if(W.paused){W.pauseStart=Date.now();cancelMinNotif();}else{W.pausedMs+=Date.now()-W.pauseStart;W.pauseStart=0;W.lastMove=Date.now();scheduleMinNotif();}$('#livePanel').classList.toggle('paused',W.paused);setPauseBtn();updateTail();updatePill();saveLive(true);liveTick(true);toast(W.paused?'Paseo en pausa':'¡Seguimos!');}
+function togglePause(){if(!W.active)return;W.paused=!W.paused;if(W.paused){W.pauseStart=Date.now();cancelMinNotif();}else{W.pausedMs+=Date.now()-W.pauseStart;W.pauseStart=0;W.lastMove=Date.now();scheduleMinNotif();}$('#livePanel').classList.toggle('paused',W.paused);setPauseBtn();updateTail();updatePill();saveLive(true);liveTick(true);vivoPublicar(true);toast(W.paused?'Paseo en pausa':'¡Seguimos!');}
 function stopWalk(){
   if(!W.active)return;if(W.mode==='gps'){W.elapsed=walkElapsed();const last=W.points[W.points.length-1];if(last&&W.cur&&!W.paused&&dist(last,W.cur)>3){W.points.push(r6(W.cur));redrawTrack();}}W.active=false;clearInterval(W.timer);
-  stopTracking();cancelMinNotif();liveEnd();if(S.mode==='cloud'&&W.mode==='gps')LS.set(lsKey('live'),snapshot());
+  stopTracking();cancelMinNotif();liveEnd();vivoTerminar();if(S.mode==='cloud'&&W.mode==='gps')LS.set(lsKey('live'),snapshot());
   releaseWakeLock();hidePocket();
   openFinish({mode:W.mode,started:W.started,elapsed:W.elapsed,distance:W.distance,points:cleanTrack(W.points),route:W.route,pee:W.pee,poop:W.poop,dogId:W.dogId});
 }
@@ -1307,7 +1352,7 @@ async function resumeWalk(b){
   setupLiveUI('gps',W.route);
   const last=W.points[W.points.length-1];
   ensureLiveMap(last||(W.route?W.route.points[0]:DEFAULT_CENTER));drawGhost(W.route);resetTrack();redrawTrack();if(last)movePin(last,null);
-  setPill('Retomando el GPS…','warn');startTracking();scheduleMinNotif();liveStart();
+  setPill('Retomando el GPS…','warn');startTracking();scheduleMinNotif();liveStart();vivoEmpezar();
   clearInterval(W.timer);W.timer=setInterval(tick,250);updateLive();saveLive(true);
   toast(`Retomamos el paseo con ${S.dog.name} (${fmtDur(W.elapsed)})`,3800);
 }
@@ -1556,7 +1601,11 @@ function famSubscribe(){
   if(S.mode!=='cloud'||!sb||typeof sb.channel!=='function'||!S.user)return;
   const ids=S.dogs.map(d=>d.id).sort(),key=ids.join(',');if(!ids.length||key===famKey)return;
   famUnsubscribe();famKey=key;
-  try{famChannel=sb.channel('familia-'+S.user.id).on('postgres_changes',{event:'INSERT',schema:'public',table:'walks',filter:`dog_id=in.(${ids.join(',')})`},p=>onFamilyWalk(p&&p.new)).subscribe();}catch(e){console.warn('realtime',e);}
+  try{famChannel=sb.channel('familia-'+S.user.id)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'walks',filter:`dog_id=in.(${ids.join(',')})`},p=>onFamilyWalk(p&&p.new))
+    .on('postgres_changes',{event:'*',schema:'public',table:'paseos_en_vivo',filter:`dog_id=in.(${ids.join(',')})`},p=>onVivo(p))
+    .subscribe();}catch(e){console.warn('realtime',e);}
+  cargarVivos();
 }
 function famUnsubscribe(){if(famChannel&&sb){try{sb.removeChannel(famChannel);}catch(e){}}famChannel=null;famKey='';}
 const quienPaseo=uid=>S.people[uid]||'Alguien de la familia';
@@ -1566,19 +1615,34 @@ function onFamilyWalk(r){
   const w=toWalk(r);w.points=Array.isArray(r.points)?r.points:null;
   const dog=S.dogs.find(d=>d.id===w.dogId);if(!dog)return;
   if(S.dog&&S.dog.id===dog.id&&!S.walks.some(x=>x.id===w.id)){S.walks.push(w);S.walks.sort((a,b)=>b.start-a.start);}
-  famSeenMark(w);avisarPaseoFamilia(w,dog);refreshShared(true);
+  famSeenMark(w);
+  const k=vivoKey(w.dogId,w.by);if(S.vivos[k]){delete S.vivos[k];renderVivoPill();}
+  if(VV&&VV.dogId===w.dogId&&VV.by===w.by){VV.walk=w;vivoFin();refreshShared(true);return;}   // ya lo está mirando: sin aviso extra
+  avisarPaseoFamilia(w,dog);refreshShared(true);
 }
 function avisarPaseoFamilia(w,dog,extra){
   const t=`${quienPaseo(w.by)} paseó a ${dog.name}`,b=`${fmtDur(w.duration)} · ${fmtKm(w.distance,2)}${extra?' · '+extra:''}`;
   if(IS_APP&&NAT&&document.visibilityState==='hidden'){NAT.programarAviso(t,b+'. Toca para ver su ruta.',1,{datos:{tipo:'familia',walkId:w.id,dogId:dog.id}}).catch(()=>{});}
   showFamBanner(w,dog,t,b);
 }
-function showFamBanner(w,dog,t,b){
-  let el=$('#famBanner');if(!el){el=document.createElement('div');el.id='famBanner';el.className='fam-banner';document.body.appendChild(el);}
-  el.innerHTML=`<img src="${avatarSrc(dog)}" alt=""><div><b>${esc(t)}</b><small>${esc(b)}</small></div><span class="fb-btn">Ver ruta</span>`;
-  requestAnimationFrame(()=>el.classList.add('on'));clearTimeout(el._t);el._t=setTimeout(()=>el.classList.remove('on'),9000);
-  el.onclick=()=>{el.classList.remove('on');openWalkFromFamily(w.id,dog.id,w);};
+function showFamBanner(w,dog,t,b,opts){
+  opts=opts||{};
+  let el=$('#famBanner');if(!el){el=document.createElement('div');el.id='famBanner';el.className='fam-banner';el.setAttribute('role','status');document.body.appendChild(el);bannerGestos(el);}
+  el.innerHTML=`<img src="${avatarSrc(dog)}" alt=""><div><b>${esc(t)}</b><small>${esc(b)}</small></div><span class="fb-btn">${esc(opts.btn||'Ver ruta')}</span><span class="fb-x" role="button" aria-label="Cerrar aviso">${I.x}</span>`;
+  el.style.transform='';el._abrir=opts.abrir||(()=>openWalkFromFamily(w.id,dog.id,w));
+  requestAnimationFrame(()=>el.classList.add('on'));clearTimeout(el._t);el._t=setTimeout(ocultarBanner,opts.ms||8000);
 }
+/* Se va solo, con la X o deslizándolo hacia arriba (y nunca queda asomado bajo la isla dinámica) */
+function ocultarBanner(){const el=$('#famBanner');if(!el)return;clearTimeout(el._t);el.classList.remove('on');el.style.transform='';}
+function bannerGestos(el){
+  let y0=null,dy=0,mov=false;
+  el.addEventListener('pointerdown',e=>{y0=e.clientY;dy=0;mov=false;el.style.transition='none';});
+  el.addEventListener('pointermove',e=>{if(y0==null)return;dy=Math.min(0,e.clientY-y0);if(dy<-6)mov=true;if(mov)el.style.transform=`translate(-50%,${dy}px)`;});
+  const fin=()=>{if(y0==null)return;y0=null;el.style.transition='';if(mov&&dy<-28)ocultarBanner();else el.style.transform='';};
+  el.addEventListener('pointerup',fin);el.addEventListener('pointercancel',fin);
+  el.addEventListener('click',e=>{e.stopPropagation();if(mov){mov=false;return;}const x=e.target.closest('.fb-x');ocultarBanner();if(!x&&el._abrir)el._abrir();});
+}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')ocultarBanner();});
 async function openWalkFromFamily(walkId,dogId,w){
   if(S.dog&&S.dog.id!==dogId&&S.dogs.some(d=>d.id===dogId)){try{await selectDog(dogId);renderAll();}catch(e){}}
   const ww=S.walks.find(x=>x.id===walkId)||w;if(ww){closeSheet(true);openWalkView(ww);}
@@ -1595,6 +1659,7 @@ async function openWalkView(w){
   const r=routeById(w.routeId),me=S.user&&S.user.id,who=w.by&&me&&w.by!==me?quienPaseo(w.by):(Object.keys(S.people).length>1?'Tú':'');
   const sh=openSheet(`<div class="sheet-head"><div style="min-width:0"><h2 style="font-size:24px">${esc(r?r.name:'Paseo libre')}</h2><p class="sub">${who?esc(who)+' · ':''}${relDay(w.start)} · ${timeOf(w.start)}</p></div><button class="icon-btn sheet-x" data-close aria-label="Cerrar">${I.x}</button></div>
     <div class="route-map" id="walkMap"></div>
+    <div class="replay" id="rpBox" hidden><button type="button" class="rp-btn" id="rpPlay" aria-label="Pausar">${I.pause}</button><input type="range" id="rpBar" min="0" max="1000" value="0" aria-label="Avance del paseo"><span id="rpTime">0:00</span></div>
     <div class="rstats"><div><b>${fmtDur(w.duration)}</b><span>tiempo</span></div><div><b>${fmtKm(w.distance,2)}</b><span>distancia</span></div><div><b>${fmtPace(w.distance,w.duration)}</b><span>ritmo por km</span></div></div>
     ${w.pee||w.poop?`<div class="walk-flags">${w.pee?`<span>${I.pee}Hizo pipí</span>`:''}${w.poop?`<span>${I.poop}Hizo caca</span>`:''}</div>`:''}`);
   $('[data-close]',sh).onclick=()=>closeSheet();
@@ -1604,9 +1669,189 @@ async function openWalkView(w){
   const box=$('#walkMap');if(!box||!box.isConnected)return;
   if(!pts||pts.length<2){box.style.height='auto';box.innerHTML='<p class="muted" style="padding:28px 20px;text-align:center;font-weight:700">Este paseo no tiene recorrido GPS.</p>';return;}
   if(!window.L){box.innerHTML=routeSVG(pts,{w:440,h:300,bg:'#18B05A'});return;}
+  const dog=S.dogs.find(d=>d.id===w.dogId)||S.dog;
   setTimeout(()=>{if(!box.isConnected)return;const m=L.map(box,{zoomControl:true,scrollWheelZoom:false});tiles().addTo(m);
-    L.polyline(pts,{color:'#fff',weight:12,lineCap:'round',lineJoin:'round'}).addTo(m);L.polyline(pts,{color:'#FF6B1A',weight:6,lineCap:'round',lineJoin:'round'}).addTo(m);
-    L.marker(pts[0],{icon:startIcon(),interactive:false}).addTo(m);m.fitBounds(L.latLngBounds(pts),{padding:[30,30]});},80);
+    const bg=L.polyline([],{color:'#fff',weight:12,lineCap:'round',lineJoin:'round'}).addTo(m),fg=L.polyline([],{color:'#FF6B1A',weight:6,lineCap:'round',lineJoin:'round'}).addTo(m);
+    L.marker(pts[0],{icon:startIcon(),interactive:false}).addTo(m);
+    const pin=L.marker(pts[0],{icon:dogIconFor(dog),zIndexOffset:1000,interactive:false}).addTo(m);
+    m.fitBounds(L.latLngBounds(pts),{padding:[34,34]});
+    repetirPaseo(pts,w.duration||0,{bg,fg,pin});},80);
+}
+/* Repite el paseo: el perrito recorre la ruta sobre el mapa real (con pausa y barra para adelantar) */
+function repetirPaseo(pts,dur,o){
+  const box=$('#rpBox'),btn=$('#rpPlay'),bar=$('#rpBar'),lbl=$('#rpTime');if(!box)return;box.hidden=false;
+  const cum=[0];for(let i=1;i<pts.length;i++)cum.push(cum[i-1]+dist(pts[i-1],pts[i]));const total=cum[cum.length-1]||1;
+  const largo=Math.max(4500,Math.min(10000,pts.length*45));let f=0,play=false,raf=0,t0=0;
+  const pintar=()=>{const d=f*total;let i=1;while(i<cum.length-1&&cum[i]<d)i++;const seg=cum[i]-cum[i-1]||1,k=Math.max(0,Math.min(1,(d-cum[i-1])/seg)),a=pts[i-1],b=pts[i],pos=[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k];
+    const linea=f>=1?pts:pts.slice(0,i).concat([pos]);o.bg.setLatLngs(linea);o.fg.setLatLngs(linea);o.pin.setLatLng(f>=1?pts[pts.length-1]:pos);
+    bar.value=Math.round(f*1000);lbl.textContent=dur?`${fmtClock(dur*f)} / ${fmtClock(dur)}`:`${fmtKm(d,2)}`;};
+  const icono=()=>{btn.innerHTML=play?I.pause:(f>=1?I.sync:I.play);btn.setAttribute('aria-label',play?'Pausar':f>=1?'Repetir':'Reproducir');};
+  const loop=now=>{if(!box.isConnected){play=false;return;}f=Math.min(1,f+(now-t0)/largo);t0=now;pintar();if(f>=1){play=false;icono();return;}raf=requestAnimationFrame(loop);};
+  const empezar=()=>{if(f>=1)f=0;play=true;t0=performance.now();icono();cancelAnimationFrame(raf);raf=requestAnimationFrame(loop);};
+  const parar=()=>{play=false;cancelAnimationFrame(raf);icono();};
+  btn.onclick=()=>{play?parar():empezar();};
+  bar.oninput=()=>{parar();f=(+bar.value)/1000;pintar();icono();};
+  pintar();setTimeout(()=>{if(box.isConnected)empezar();},450);
+}
+const dogIconFor=d=>L.divIcon({className:'dp-wrap',html:`<div class="dogpin"><img src="${avatarSrc(d)}" alt=""></div>`,iconSize:[46,46],iconAnchor:[23,23]});
+
+/* =========================================================
+   PASEO EN VIVO PARA LA FAMILIA
+   Quien pasea publica su recorrido (solo si el perro es compartido);
+   el resto de la familia lo ve avanzar en el mapa en tiempo real.
+   ========================================================= */
+S.vivos={};
+const vivoKey=(d,u)=>d+'|'+u;
+const msDe=t=>t?new Date(t).getTime():0;
+const VIVO={on:false,off:false,last:0,busy:false,hb:null,pts:[],idx:0,enviados:0,estado:''};
+const VIVO_MS=8000,VIVO_FRESCO=180000,VIVO_VIEJO=6*3600e3;
+const r5=p=>[Math.round(p[0]*1e5)/1e5,Math.round(p[1]*1e5)/1e5];
+function vivoEmpezar(){
+  VIVO.on=false;clearInterval(VIVO.hb);
+  if(S.mode!=='cloud'||!sb||!S.user||W.mode!=='gps'||VIVO.off)return;
+  if(S.fam&&S.fam.ok&&S.fam.dogId===W.dogId&&(S.fam.members||[]).length<2)return;   // nadie más lo ve: no se publica
+  Object.assign(VIVO,{on:true,last:0,pts:[],idx:0,enviados:0,estado:''});
+  vivoPublicar(true);VIVO.hb=setInterval(()=>vivoPublicar(true),25000);
+}
+function vivoPuntosNuevos(){
+  const raw=W.points.slice(VIVO.idx);if(!raw.length)return false;VIVO.idx=W.points.length;
+  const ancla=VIVO.pts[VIVO.pts.length-1],seg=ancla?[ancla,...raw]:raw,simple=rdp(seg,3).map(r5);
+  VIVO.pts.push(...(ancla?simple.slice(1):simple));if(VIVO.pts.length>1500)VIVO.pts=thin(VIVO.pts,1000);return true;
+}
+async function vivoPublicar(forzar){
+  if(!VIVO.on||!W.active||W.mode!=='gps'||VIVO.busy)return;const n=Date.now();
+  if(!forzar&&n-VIVO.last<VIVO_MS)return;
+  const hay=vivoPuntosNuevos(),estado=[W.paused,W.pausedMs,Math.round(W.distance/10)].join();
+  if(!hay&&!forzar&&estado===VIVO.estado)return;
+  VIVO.last=n;VIVO.busy=true;VIVO.estado=estado;
+  const fila={dog_id:W.dogId,user_id:S.user.id,nombre:(S.user.name||'').split(/[\s@]/)[0]||null,started_at:new Date(W.started).toISOString(),paused:!!W.paused,paused_ms:Math.round(W.pausedMs||0),pause_start:W.paused&&W.pauseStart?new Date(W.pauseStart).toISOString():null,distance_m:Math.round(W.distance)};
+  if(hay||VIVO.enviados!==VIVO.pts.length||!VIVO.enviados)fila.points=VIVO.pts.slice();
+  try{const {error}=await sb.from('paseos_en_vivo').upsert(fila,{onConflict:'dog_id,user_id'});
+    if(error){if(/does not exist|schema cache|relation/i.test(error.message||'')){VIVO.on=false;VIVO.off=true;clearInterval(VIVO.hb);}}
+    else if(fila.points)VIVO.enviados=fila.points.length;}
+  catch(e){}
+  VIVO.busy=false;
+}
+async function vivoTerminar(){
+  clearInterval(VIVO.hb);VIVO.hb=null;if(!VIVO.on)return;VIVO.on=false;
+  try{await sb.from('paseos_en_vivo').delete().eq('dog_id',W.dogId).eq('user_id',S.user.id);}catch(e){}
+}
+async function vivoLimpiarPropios(){   // si la app se cerró en medio de un paseo
+  if(S.mode!=='cloud'||!sb||!S.user||W.active||VIVO.off)return;
+  try{await sb.from('paseos_en_vivo').delete().eq('user_id',S.user.id).lt('updated_at',new Date(Date.now()-600000).toISOString());}catch(e){}
+}
+/* ---------- quien mira ---------- */
+function toVivo(r,prev){
+  const upd=msDe(r.updated_at)||Date.now(),cambio=!prev||prev.updated!==upd;
+  return {key:vivoKey(r.dog_id,r.user_id),dogId:r.dog_id,by:r.user_id,nombre:r.nombre||'',started:msDe(r.started_at),updated:upd,
+    recibido:cambio?(prev?Date.now():Math.min(Date.now(),upd)):prev.recibido,paused:!!r.paused,pausedMs:+r.paused_ms||0,pauseStart:msDe(r.pause_start),
+    distance:+r.distance_m||0,points:Array.isArray(r.points)?r.points:(prev?prev.points:[])};
+}
+const vivoSeg=v=>Math.max(0,((v.paused&&v.pauseStart?v.pauseStart:Date.now())-v.started-v.pausedMs)/1000);
+const vivoFresco=v=>Date.now()-v.recibido<VIVO_FRESCO;
+const vivoVisible=v=>Date.now()-v.recibido<VIVO_VIEJO&&Date.now()-v.started<12*3600e3;
+const quienVivo=v=>S.people[v.by]||v.nombre||'Alguien de la familia';
+function onVivo(p){
+  if(!p||!S.user)return;const ev=p.eventType||(p.new&&p.new.dog_id?'UPDATE':'DELETE');
+  if(ev==='DELETE'){const o=p.old||{};if(!o.dog_id||!o.user_id)return;const k=vivoKey(o.dog_id,o.user_id);if(S.vivos[k]){delete S.vivos[k];renderVivoPill();}if(VV&&VV.key===k)vivoFin();return;}
+  const r=p.new;if(!r||!r.dog_id||r.user_id===S.user.id)return;
+  const k=vivoKey(r.dog_id,r.user_id),prev=S.vivos[k],v=toVivo(r,prev);S.vivos[k]=v;
+  if(!prev&&vivoFresco(v))avisarVivo(v);
+  renderVivoPill();if(VV&&VV.key===k)vivoPintar(v,true);
+}
+async function cargarVivos(){
+  if(S.mode!=='cloud'||!S.user||!S.dogs.length)return;
+  try{const filas=await DB.listVivos(S.dogs.map(d=>d.id)),nuevos={};
+    filas.forEach(r=>{if(r.user_id===S.user.id)return;const k=vivoKey(r.dog_id,r.user_id),v=toVivo(r,S.vivos[k]);if(vivoVisible(v))nuevos[k]=v;});
+    const antes=S.vivos;S.vivos=nuevos;
+    Object.values(nuevos).forEach(v=>{if(!antes[v.key]&&vivoFresco(v)&&!VV)avisarVivo(v);});
+    if(VV&&!nuevos[VV.key]&&!VV.fin)vivoFin();
+    renderVivoPill();}
+  catch(e){}
+}
+function avisarVivo(v){
+  const dog=S.dogs.find(d=>d.id===v.dogId);if(!dog||(VV&&VV.key===v.key))return;
+  showFamBanner(null,dog,`${quienVivo(v)} salió a pasear a ${dog.name}`,'En vivo · mira su recorrido en el mapa',{btn:'Ver en vivo',abrir:()=>openVivo(v.key),ms:9000});
+}
+function renderVivoPill(){
+  let el=$('#vivoPill');
+  const lista=S.user?Object.values(S.vivos).filter(v=>vivoVisible(v)&&S.dogs.some(d=>d.id===v.dogId)).sort((a,b)=>b.started-a.started):[];
+  const main=$('#scr-main');
+  if(!lista.length||!main||!main.classList.contains('on')||W.active||VV){if(el)el.hidden=true;return;}
+  if(!el){el=document.createElement('div');el.id='vivoPill';el.className='vivo-pill';el.setAttribute('role','button');el.tabIndex=0;document.body.appendChild(el);
+    el.addEventListener('click',e=>{e.stopPropagation();if(el.dataset.k)openVivo(el.dataset.k);});}
+  const v=lista[0],dog=S.dogs.find(d=>d.id===v.dogId),fr=vivoFresco(v);
+  el.dataset.k=v.key;el.hidden=false;el.classList.toggle('stale',!fr);
+  el.innerHTML=`<img src="${avatarSrc(dog)}" alt=""><span><b>${esc(quienVivo(v))} pasea a ${esc(dog.name)}</b><small><i class="vivo-dot"></i>${fr?(v.paused?'En pausa':'En vivo'):'Sin señal'} · ${fmtClock(vivoSeg(v))} · ${fmtKm(v.distance,2)}${lista.length>1?` · +${lista.length-1}`:''}</small></span><em>Ver</em>`;
+}
+setInterval(()=>{if(S.vivos&&Object.keys(S.vivos).length)renderVivoPill();},1000);
+/* ---------- visor: el recorrido avanzando en el mapa ---------- */
+let VV=null;
+function openVivo(key){
+  const v=S.vivos[key];if(!v)return;const dog=S.dogs.find(d=>d.id===v.dogId);if(!dog)return;
+  ocultarBanner();
+  const sh=openSheet(`<div class="sheet-head"><div style="min-width:0"><h2 style="font-size:24px">${esc(quienVivo(v))} pasea a ${esc(dog.name)}</h2><p class="sub vv-sub"><i class="vivo-dot"></i><span id="vvEstado">En vivo</span> · desde las ${timeOf(v.started)}</p></div><button class="icon-btn sheet-x" data-close aria-label="Cerrar">${I.x}</button></div>
+    <div class="route-map vivo-map" id="vivoMap"></div>
+    <button type="button" class="btn btn-white btn-sm vv-centrar" id="vvCentrar" hidden>${I.target}Seguir a ${esc(dog.name)}</button>
+    <div class="rstats"><div><b id="vvT">–</b><span>tiempo</span></div><div><b id="vvD">–</b><span>distancia</span></div><div><b id="vvP">–</b><span>ritmo por km</span></div></div>
+    <div id="vvFin" hidden></div>`);
+  $('[data-close]',sh).onclick=()=>closeSheet();
+  VV={key,dogId:v.dogId,by:v.by,dog,m:null,bg:null,fg:null,pin:null,start:null,src:[],shown:[],follow:true,anim:0,centrado:false,fin:false,walk:null,timer:null,poll:null};
+  const yo=VV;
+  setTimeout(()=>{const box=$('#vivoMap');if(!box||!box.isConnected||VV!==yo)return;
+    if(!window.L){box.innerHTML=v.points.length>1?routeSVG(v.points,{w:440,h:300,bg:'#18B05A'}):'';return;}
+    const m=L.map(box,{zoomControl:true,scrollWheelZoom:false});tiles().addTo(m);VV.m=m;
+    VV.bg=L.polyline([],{color:'#fff',weight:11,lineCap:'round',lineJoin:'round'}).addTo(m);VV.fg=L.polyline([],{color:'#FF6B1A',weight:6,lineCap:'round',lineJoin:'round'}).addTo(m);
+    m.on('dragstart',()=>{if(!VV)return;VV.follow=false;const b=$('#vvCentrar');if(b)b.hidden=false;});
+    vivoPintar(S.vivos[key]||v,false);},80);
+  $('#vvCentrar',sh).onclick=()=>{if(!VV)return;VV.follow=true;$('#vvCentrar').hidden=true;if(VV.pin&&VV.m)VV.m.panTo(VV.pin.getLatLng(),{animate:true});};
+  VV.timer=setInterval(vivoTick,1000);VV.poll=setInterval(vivoPoll,12000);vivoTick();renderVivoPill();
+}
+function cerrarVisorVivo(){if(!VV)return;clearInterval(VV.timer);clearInterval(VV.poll);cancelAnimationFrame(VV.anim);VV=null;renderVivoPill();}
+const mismoPunto=(a,b)=>a&&b&&Math.abs(a[0]-b[0])<1e-6&&Math.abs(a[1]-b[1])<1e-6;
+function vivoPintar(v,animar){
+  if(!VV||!VV.m||!v)return;const P=v.points||[];if(!P.length){if(!VV.centrado)VV.m.setView(DEFAULT_CENTER,15);return;}
+  if(!VV.start)VV.start=L.marker(P[0],{icon:startIcon(),interactive:false}).addTo(VV.m);
+  const old=VV.src,prefijo=old.length>0&&P.length>=old.length&&mismoPunto(P[old.length-1],old[old.length-1]),nuevos=prefijo?P.slice(old.length):[];
+  VV.src=P.slice();
+  const fijar=()=>{VV.shown=P.slice();VV.bg.setLatLngs(P);VV.fg.setLatLngs(P);};
+  if(!animar||!prefijo||!nuevos.length||!VV.pin){
+    cancelAnimationFrame(VV.anim);fijar();const last=P[P.length-1];
+    if(!VV.pin)VV.pin=L.marker(last,{icon:dogIconFor(VV.dog),zIndexOffset:1000,interactive:false}).addTo(VV.m);else VV.pin.setLatLng(last);
+    if(!VV.centrado){VV.centrado=true;if(P.length>1)VV.m.fitBounds(L.latLngBounds(P),{padding:[40,40],maxZoom:17});else VV.m.setView(last,17);}
+    else if(VV.follow)VV.m.panTo(last,{animate:true});
+    return;}
+  /* el perrito camina por los puntos nuevos y la línea crece detrás de él */
+  cancelAnimationFrame(VV.anim);
+  const base=VV.shown.slice(),camino=[base[base.length-1]||nuevos[0],...nuevos],cum=[0];
+  for(let i=1;i<camino.length;i++)cum.push(cum[i-1]+dist(camino[i-1],camino[i]));
+  const total=cum[cum.length-1]||1,dur=Math.max(900,Math.min(6000,total*70)),t0=performance.now(),yo=VV;
+  const paso=now=>{if(VV!==yo)return;const f=Math.min(1,(now-t0)/dur),d=f*total;let i=1;while(i<cum.length-1&&cum[i]<d)i++;
+    const seg=cum[i]-cum[i-1]||1,k=Math.max(0,Math.min(1,(d-cum[i-1])/seg)),a=camino[i-1],b=camino[i],pos=[a[0]+(b[0]-a[0])*k,a[1]+(b[1]-a[1])*k];
+    const linea=base.concat(camino.slice(1,i),[pos]);VV.bg.setLatLngs(linea);VV.fg.setLatLngs(linea);VV.pin.setLatLng(pos);if(VV.follow)VV.m.panTo(pos,{animate:false});
+    if(f<1)VV.anim=requestAnimationFrame(paso);else fijar();};
+  VV.anim=requestAnimationFrame(paso);
+}
+function vivoTick(){
+  if(!VV)return;if(!$('#vivoMap')){cerrarVisorVivo();return;}
+  const v=S.vivos[VV.key],t=$('#vvT'),d=$('#vvD'),pc=$('#vvP'),e=$('#vvEstado'),sub=$('.vv-sub');if(!t)return;
+  if(v){const sec=vivoSeg(v);t.textContent=fmtClock(sec);d.innerHTML=fmtKm(v.distance,2);pc.textContent=fmtPace(v.distance,sec);}
+  if(VV.fin){e.textContent='Paseo terminado';sub.classList.add('fin');return;}
+  if(!v)return;const hace=Math.round((Date.now()-v.recibido)/1000),fr=vivoFresco(v);sub.classList.toggle('stale',!fr);
+  e.textContent=!fr?`Sin señal hace ${Math.max(1,Math.round(hace/60))} min (puede estar sin internet)`:v.paused?'En pausa':hace<15?'En vivo':`En vivo · actualizado hace ${hace} s`;
+}
+async function vivoPoll(){
+  if(!VV||VV.fin)return;const yo=VV;
+  try{const r=await DB.vivo(yo.dogId,yo.by);if(VV!==yo)return;
+    if(!r){if(S.vivos[yo.key]){delete S.vivos[yo.key];}vivoFin();return;}
+    const prev=S.vivos[yo.key],v=toVivo(r,prev);S.vivos[yo.key]=v;if(!prev||prev.updated!==v.updated)vivoPintar(v,true);}
+  catch(e){}
+}
+function vivoFin(){
+  if(!VV)return;VV.fin=true;vivoTick();const box=$('#vvFin');if(!box)return;box.hidden=false;
+  box.innerHTML=VV.walk?`<div class="alert good" style="margin-top:12px">${I.check}<span>${esc(quienVivo({by:VV.by,nombre:''}))} terminó el paseo y lo guardó.</span></div><button class="btn btn-orange btn-block" id="vvVer" style="margin-top:10px">${I.route}Ver el paseo completo</button>`
+    :`<div class="alert info" style="margin-top:12px">${I.info}<span>Terminó el paseo. Cuando lo guarde, aparecerá en el historial de ${esc(VV.dog.name)}.</span></div>`;
+  const b=$('#vvVer');if(b){const w=VV.walk;b.onclick=()=>openWalkView(w);}
 }
 let lastRefresh=0;
 async function refreshShared(force){
@@ -1652,7 +1897,7 @@ const EMAIL_RE=/^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function pwErr(e){const m=(e&&e.message)||'';
   if((e&&e.status===429)||/rate limit|too many|seconds/i.test(m))return 'Demasiados intentos seguidos. Espera unos minutos e intenta de nuevo.';
   if(/invalid login|invalid credentials/i.test(m))return 'Correo o contraseña incorrectos. Si antes entrabas con Google, primero crea tu contraseña desde la web (Ajustes → Contraseña para la app).';
-  if(/not confirmed/i.test(m))return 'Falta confirmar tu correo: abre el enlace que te enviamos y vuelve a intentar.';
+  if(/not confirmed/i.test(m))return 'Tu cuenta aún no está activa. Espera un momento e intenta entrar de nuevo.';
   if(/already registered|already exists/i.test(m))return 'Ese correo ya tiene cuenta. Toca «Entrar» con tu contraseña.';
   if(/should be different|same.*old/i.test(m))return 'La contraseña nueva debe ser distinta a la anterior.';
   if(/reauthenticat|recent login/i.test(m))return 'Por seguridad, cierra sesión, vuelve a entrar con Google e inténtalo de nuevo.';
@@ -1681,13 +1926,14 @@ function openEmailSheet(prefill,mode){
     if(!signup){const {data,error}=await sb.auth.signInWithPassword({email,password});
       if(error){done();toast(pwErr(error),6000);return;}
       closeSheet(true);if(data&&data.user)enterCloud(data.user);return;}
-    const {data,error}=await sb.auth.signUp({email,password,options:{emailRedirectTo:location.origin+location.pathname}});
+    const {data,error}=await sb.auth.signUp({email,password});
     if(error){done();toast(pwErr(error),6000);return;}
     if(data&&data.session&&data.user){closeSheet(true);enterCloud(data.user);return;}
     if(data&&data.user&&Array.isArray(data.user.identities)&&!data.user.identities.length){done();toast('Ese correo ya tiene cuenta. Si entrabas con Google, crea tu contraseña desde la web (Ajustes → Contraseña para la app).',7000);return;}
-    closeSheet(true);
-    openSheet(`<h2>Confirma tu correo</h2><p class="sub" style="margin:6px 0 16px">Te enviamos un enlace a <b>${esc(email)}</b>. Ábrelo (puede abrirse en ${TXT.navegador}, está bien) y luego vuelve aquí y entra con tu contraseña. Revisa también la carpeta de spam.</p><button class="btn btn-orange btn-block" id="emAfter">Ya lo confirmé, entrar</button>`);
-    $('#emAfter').onclick=()=>{closeSheet(true);openEmailSheet(email);};};
+    /* sin correo de confirmación: entra de inmediato */
+    const r2=await sb.auth.signInWithPassword({email,password});
+    if(r2.error){done();toast(pwErr(r2.error),6000);return;}
+    closeSheet(true);if(r2.data&&r2.data.user)enterCloud(r2.data.user);};
   goBtn.onclick=go_;ip.onkeydown=e=>{if(e.key==='Enter')go_();};ie.onkeydown=e=>{if(e.key==='Enter')ip.focus();};
   $('#emSwitch',sh).onclick=()=>{const v=ie.value.trim();closeSheet(true);openEmailSheet(v,signup?'login':'signup');};
   if(EMAIL_CODE)$('#emCode',sh).onclick=()=>{const v=ie.value.trim();closeSheet(true);openOtpSheet(v);};
@@ -1814,7 +2060,7 @@ document.addEventListener('visibilitychange',()=>{
   if(W.active){requestWakeLock();
     if(W.mode==='gps'){if(!IS_APP)startTracking();if(liveMap){liveMap.invalidateSize();redrawTrack();}if(!IS_APP&&W.hiddenAt&&Date.now()-W.hiddenAt>15000)toast('El tiempo siguió corriendo. Con la pantalla apagada el GPS se pausa: usa el modo bolsillo.',5000);}
     W.hiddenAt=0;W.elapsed=walkElapsed();updateLive();}
-  else if(S.dog&&$('#scr-main').classList.contains('on')){renderProfile();refreshShared();if(S.view==='ajustes')renderEnergia();}
+  else if(S.dog&&$('#scr-main').classList.contains('on')){renderProfile();refreshShared();cargarVivos();if(S.view==='ajustes')renderEnergia();}
 });
 let rsz;window.addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(()=>{if(S.view==='stats'&&S.dog)renderStats();},150);});
 
@@ -1883,7 +2129,7 @@ function openPrivacy(){
     <iframe class="doc-frame" src="${PRIVACIDAD_URL}" title="Política de privacidad"></iframe>`);
   $('[data-close]',sh).onclick=()=>closeSheet();
 }
-function resetToLogin(){LS.del('guau.manada');famUnsubscribe();closeSheet(true);closeLightbox();S.photos=[];S.mode=null;S.user=null;S.dog=null;S.dogs=[];S.walks=[];S.routes=[];$('#live').hidden=true;show('login');}
+function resetToLogin(){LS.del('guau.manada');famUnsubscribe();S.vivos={};renderVivoPill();ocultarBanner();closeSheet(true);closeLightbox();S.photos=[];S.mode=null;S.user=null;S.dog=null;S.dogs=[];S.walks=[];S.routes=[];$('#live').hidden=true;show('login');}
 async function logout(){
   if(S.mode==='cloud'&&sb){try{await sb.auth.signOut();}catch(e){}}
   resetToLogin();
@@ -1897,7 +2143,7 @@ async function enterCloud(user){
   try{
     S.dogs=await DB.listDogs();
     if(!S.dogs.length){openOnboarding('first');}
-    else{await selectDog(LS.get(lsKey('lastDog'))||S.dogs[0].id);show('main');go('perfil');renderAll();setTimeout(async()=>{flushQueue();await checkLiveBackup();scheduleReminders(false);liveCleanup();famSubscribe();setTimeout(maybeAskReminders,1200);},400);}
+    else{await selectDog(LS.get(lsKey('lastDog'))||S.dogs[0].id);show('main');go('perfil');renderAll();setTimeout(async()=>{flushQueue();await checkLiveBackup();scheduleReminders(false);liveCleanup();famSubscribe();vivoLimpiarPropios();setTimeout(maybeAskReminders,1200);},400);}
   }catch(e){console.error(e);S.user=null;show('login');toast('No pudimos cargar tus datos: '+(e.message||'error de conexión'),5000);}
   entering=false;
 }
@@ -1919,6 +2165,15 @@ async function boot(){
     if(data.session)enterCloud(data.session.user);else if(!entering)show('login');
   }catch(e){console.error(e);show('login');toast('No pudimos conectar con el servidor',4000);}
 }
-window.Salchipaseo={S,W,MEM,startWalk,stopWalk,enterDemo,go};
+/* Guau Guau se usa en vertical: si alguien gira el teléfono, le pedimos volver (la app nativa ya está bloqueada) */
+function revisarGiro(){
+  const o=(screen.orientation&&screen.orientation.type)||'',horizontal=o?/landscape/.test(o):Math.abs(+window.orientation||0)===90;
+  const telefono=matchMedia('(pointer:coarse)').matches&&Math.min(screen.width,screen.height)<600;
+  document.body.classList.toggle('girado',horizontal&&telefono);
+}
+try{if(screen.orientation&&screen.orientation.lock&&matchMedia('(display-mode: standalone)').matches)screen.orientation.lock('portrait').catch(()=>{});}catch(e){}
+if(screen.orientation&&screen.orientation.addEventListener)screen.orientation.addEventListener('change',revisarGiro);
+window.addEventListener('orientationchange',()=>setTimeout(revisarGiro,60));revisarGiro();
+window.Salchipaseo={S,W,MEM,VIVO,startWalk,stopWalk,enterDemo,go,openVivo,openDogMenu,_vv:()=>VV&&VV.fg?{linea:VV.fg.getLatLngs().length,pin:VV.pin&&VV.pin.getLatLng()}:null};
 boot();
 })();
